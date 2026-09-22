@@ -1,0 +1,66 @@
+// Chat App MVP database schema
+// Paste this file into https://dbdiagram.io/d
+//
+// This diagram intentionally shows only simple 1-N relationships.
+// conversation_members is the junction table that breaks the conceptual
+// User <-> Conversation many-to-many relationship into two 1-N relationships.
+
+Table users {
+  id bigint [pk, increment]
+  name varchar(100) [not null]
+  email varchar(254) [not null, unique]
+  password_hash text [not null]
+  avatar_url text [not null, default: '']
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table conversations {
+  id bigint [pk, increment]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+  updated_at timestamptz [not null, default: `clock_timestamp()`]
+}
+
+Table conversation_members {
+  conversation_id bigint [not null]
+  user_id bigint [not null]
+  last_read_at timestamptz [null]
+  last_read_message_id bigint [null]
+
+  Indexes {
+    (conversation_id, user_id) [pk]
+    (user_id, conversation_id)
+  }
+}
+
+Table messages {
+  id bigint [pk, increment]
+  conversation_id bigint [not null]
+  sender_id bigint [not null]
+  content text [not null]
+  created_at timestamptz [not null, default: `clock_timestamp()`]
+
+  Indexes {
+    // Supports history pagination and the last-message lookup.
+    (conversation_id, id) [unique]
+  }
+}
+
+// Every visible line below is a 1-N relationship.
+// One conversation has many member rows.
+Ref: conversations.id < conversation_members.conversation_id
+
+// One user has many member rows.
+Ref: users.id < conversation_members.user_id
+
+// One conversation has many messages.
+Ref: conversations.id < messages.conversation_id
+
+// One user can send many messages.
+Ref: users.id < messages.sender_id
+
+// Business invariants kept out of the diagram to avoid extra composite lines:
+// 1. messages.sender_id must be a member of messages.conversation_id.
+// 2. conversation_members.last_read_message_id, when set, must refer to a
+//    message in that same conversation.
+// Migration 000002 enforces both with composite foreign keys.
+// Repository transactions enforce lock-before-ID writes and monotonic read updates.

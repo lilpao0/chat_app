@@ -33,12 +33,9 @@ chat_app/
 |-- backend/          # Go API
 |   |-- cmd/api/     # entry point
 |   |-- internal/
-|   |   |-- domain/
-|   |   |-- usecase/
-|   |   |-- repository/
-|   |   |-- delivery/
-|   |   |-- infrastructure/
-|   |   `-- config/
+|   |   |-- presentation/ # HTTP / WebSocket
+|   |   |-- domain/       # entities, repository interfaces, use cases
+|   |   `-- data/         # database, SQL repositories, auth adapters
 |   `-- migrations/
 |
 `-- ke-hoach-6-tuan-flutter-golang-chat-app-1.md
@@ -72,6 +69,7 @@ chat_app/
 - Avatar, name, last message, time
 - Unread badge + unread count
 - Pull to refresh
+- Tìm người dùng và mở lại hoặc tạo cuộc trò chuyện 1–1 với họ
 
 ### Chat Detail
 - Load message history
@@ -85,6 +83,8 @@ chat_app/
 ```
 POST /api/auth/register
 POST /api/auth/login
+GET  /api/users?q=...
+POST /api/conversations/direct
 GET  /api/conversations
 GET  /api/conversations/:id/messages
 POST /api/conversations/:id/messages
@@ -116,13 +116,13 @@ messages (id, conversation_id, sender_id, content, created_at)
 
 ### Backend
 
-```bash
-cd backend
-go mod init chat-api
-go mod tidy
-docker run -d --name postgres -e POSTGRES_PASSWORD=secret -p 5432:5432 postgres
-go run cmd/api/main.go
-```
+Backend đã hoàn thành B01–B29: Auth và luồng REST chat (danh sách, gửi tin, lịch sử, đọc/chưa đọc).
+Mã nguồn chia thành `presentation`, `domain`, `data`. Read marker dùng `last_read_message_id` cùng `last_read_at`.
+B30 đang chờ chọn Flutter mobile hay cả Web để triển khai WebSocket.
+Đọc [hướng dẫn backend](backend/README.md), [quy tắc cho agent](backend/docs/AGENTS.md)
+và [backlog từng bước](backend/docs/BACKLOG.md) trước khi triển khai.
+Theo yêu cầu mới: tiếp tục từng phần nhỏ, giải thích bằng tiếng Việt và dừng khi có câu hỏi cần người dùng quyết định.
+Backend cần `DATABASE_URL` và `JWT_SECRET`; xem hướng dẫn backend về chạy ứng dụng và kiểm thử.
 
 ### Frontend
 
