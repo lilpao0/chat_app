@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/lib/pq"
 )
 
@@ -20,10 +21,7 @@ import (
 // It never resets public tables and refuses any DB other than chat_app_test.
 func Database(t *testing.T) *sql.DB {
 	t.Helper()
-	raw := os.Getenv("TEST_DATABASE_URL")
-	if raw == "" {
-		t.Skip("set TEST_DATABASE_URL to chat_app_test")
-	}
+	raw := testDatabaseURL(t)
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") {
 		t.Fatal("TEST_DATABASE_URL must be a PostgreSQL URL")
@@ -67,7 +65,7 @@ func Database(t *testing.T) *sql.DB {
 	}
 	t.Cleanup(func() { db.Close() })
 	_, source, _, _ := runtime.Caller(0)
-	for _, file := range []string{"000001_create_users.up.sql", "000002_create_chat.up.sql"} {
+	for _, file := range []string{"000001_initial_schema.up.sql"} {
 		body, err := os.ReadFile(filepath.Join(filepath.Dir(source), "..", "..", "migrations", file))
 		if err != nil {
 			t.Fatal(err)
@@ -77,4 +75,29 @@ func Database(t *testing.T) *sql.DB {
 		}
 	}
 	return db
+}
+
+// testDatabaseURL prefers the process environment, then the backend .env file.
+// When only DATABASE_URL is configured for local development, it derives the
+// sibling chat_app_test database without ever allowing tests to use chat_app.
+func testDatabaseURL(t *testing.T) string {
+	t.Helper()
+	if raw := os.Getenv("TEST_DATABASE_URL"); raw != "" {
+		return raw
+	}
+	_, source, _, _ := runtime.Caller(0)
+	values, err := godotenv.Read(filepath.Join(filepath.Dir(source), "..", "..", ".env"))
+	if err != nil {
+		t.Fatalf("TEST_DATABASE_URL is required and backend/.env could not be read: %v", err)
+	}
+	if raw := values["TEST_DATABASE_URL"]; raw != "" {
+		return raw
+	}
+	developmentURL := values["DATABASE_URL"]
+	u, err := url.Parse(developmentURL)
+	if err != nil || (u.Scheme != "postgres" && u.Scheme != "postgresql") || u.Path != "/chat_app" {
+		t.Fatal("set TEST_DATABASE_URL to the isolated chat_app_test database")
+	}
+	u.Path = "/chat_app_test"
+	return u.String()
 }

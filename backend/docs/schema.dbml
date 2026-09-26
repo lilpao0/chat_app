@@ -5,24 +5,62 @@
 // conversation_members is the junction table that breaks the conceptual
 // User <-> Conversation many-to-many relationship into two 1-N relationships.
 
+Enum conversation_member_role {
+  owner
+  admin
+  member
+}
+
 Table users {
   id bigint [pk, increment]
-  name varchar(100) [not null]
-  email varchar(254) [not null, unique]
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  date_of_birth date [null, note: 'Optional until the onboarding requirements are confirmed']
+  email varchar(254) [not null, note: 'Store trimmed lowercase text; migration must create a unique index on lower(email)']
+  phone_number varchar(20) [null, unique, note: 'Store a normalized international number such as +84901234567']
   password_hash text [not null]
   avatar_url text [not null, default: '']
   created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+  deleted_at timestamptz [null, note: 'Soft deletion preserves message sender references']
 }
 
 Table conversations {
   id bigint [pk, increment]
+  is_group boolean [not null, default: false]
+  name varchar(100) [null, note: 'Required when is_group=true; otherwise derived from the other user']
+  avatar_url text [null, note: 'Group avatar; direct chat derives its avatar from the other user']
+  created_by bigint [null, note: 'Required when is_group=true; null otherwise']
   created_at timestamptz [not null, default: `clock_timestamp()`]
   updated_at timestamptz [not null, default: `clock_timestamp()`]
+
+  Note: '''One model supports both direct and group conversations. When is_group
+  is false, name and avatar_url stay null and the API uses the other member's user
+  profile. When is_group is true, name and avatar_url belong to this row. The
+  last message always comes from messages and is not duplicated here.'''
+}
+
+// Provides a database-enforceable canonical identity for a direct chat.
+// The application always stores the smaller user ID in user_low_id.
+Table direct_conversations {
+  conversation_id bigint [pk]
+  user_low_id bigint [not null]
+  user_high_id bigint [not null]
+
+  Indexes {
+    (user_low_id, user_high_id) [unique]
+  }
+
+  Note: '''Only direct conversations have a row here. user_low_id must be less
+  than user_high_id, and these must be the same two users stored in
+  conversation_members for this conversation.'''
 }
 
 Table conversation_members {
   conversation_id bigint [not null]
   user_id bigint [not null]
+  role conversation_member_role [not null, default: 'member']
+  joined_at timestamptz [not null, default: `clock_timestamp()`]
   last_read_at timestamptz [null]
   last_read_message_id bigint [null]
 
@@ -49,6 +87,16 @@ Table messages {
 // One conversation has many member rows.
 Ref: conversations.id < conversation_members.conversation_id
 
+// A direct conversation has one canonical user-pair row.
+Ref: conversations.id - direct_conversations.conversation_id
+
+// Each user can participate in many canonical direct-chat pairs.
+Ref: users.id < direct_conversations.user_low_id
+Ref: users.id < direct_conversations.user_high_id
+
+// One user can create many group conversations.
+Ref: users.id < conversations.created_by
+
 // One user has many member rows.
 Ref: users.id < conversation_members.user_id
 
@@ -62,5 +110,21 @@ Ref: users.id < messages.sender_id
 // 1. messages.sender_id must be a member of messages.conversation_id.
 // 2. conversation_members.last_read_message_id, when set, must refer to a
 //    message in that same conversation.
-// Migration 000002 enforces both with composite foreign keys.
-// Repository transactions enforce lock-before-ID writes and monotonic read updates.
+// 3. A conversation with is_group=false has exactly two distinct members, and
+//    a user pair has at most one direct conversation. direct_conversations enforces the unique
+//    canonical pair; CHECK(user_low_id < user_high_id) prevents reversed pairs.
+//    Direct conversation rows have null name/avatar_url/created_by.
+// 4. A conversation with is_group=true has a nonblank name, a creator, and at
+//    least two members. Its avatar_url is optional. The creator has owner role.
+// 5. Conversation-list display fields are derived as follows:
+//    direct name/avatar = the other member's users row
+//    group name/avatar  = conversations.name / conversations.avatar_url
+//    last_message / last_message_at = newest messages row for the conversation
+// 6. updated_at is maintained by the application whenever a user profile,
+//    group profile, or conversation activity changes.
+// 7. Deleting a user is a soft delete: credentials and personal profile data are
+//    disabled/anonymized while the users row remains for message history.
+// Migration 000002 currently enforces invariants 1 and 2 with composite foreign keys.
+// Repository transactions currently enforce the existing direct-chat rules,
+// lock-before-ID writes, and monotonic read updates. Later migrations will align
+// the implemented tables with this approved design after schema review.

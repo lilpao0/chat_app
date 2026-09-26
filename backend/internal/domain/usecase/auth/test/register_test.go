@@ -33,12 +33,12 @@ func (f fakePasswords) Compare(h, p string) (bool, error) { return f.compare(h, 
 
 func TestRegister(t *testing.T) {
 	ctx := context.Background()
-	in := domainauth.RegisterInput{Name: "  An  ", Email: " AN@Example.test ", Password: " password123 "}
+	in := domainauth.RegisterInput{FirstName: "  An  ", LastName: "  B  ", Email: " AN@Example.test ", Password: " password123 "}
 	users := fakeUsers{create: func(gotCtx context.Context, got repository.CreateUser) (entity.User, error) {
-		if gotCtx != ctx || got.Name != "An" || got.Email != "an@example.test" || got.PasswordHash != "hashed-value" {
+		if gotCtx != ctx || got.FirstName != "An" || got.LastName != "B" || got.Email != "an@example.test" || got.PasswordHash != "hashed-value" {
 			t.Fatal("normalization, hash or context not propagated")
 		}
-		return entity.User{ID: 1, Name: got.Name, Email: got.Email, PasswordHash: got.PasswordHash}, nil
+		return entity.User{ID: 1, FirstName: got.FirstName, LastName: got.LastName, Name: got.FirstName + " " + got.LastName, Email: got.Email, PasswordHash: got.PasswordHash}, nil
 	}}
 	passwords := fakePasswords{hash: func(p string) (string, error) {
 		if p != in.Password {
@@ -63,11 +63,11 @@ func TestRegister(t *testing.T) {
 }
 
 func TestRegisterRejectsInputBeforeDependencies(t *testing.T) {
-	valid := domainauth.RegisterInput{Name: "An", Email: "an@example.test", Password: "password123"}
+	valid := domainauth.RegisterInput{FirstName: "An", LastName: "", Email: "an@example.test", Password: "password123"}
 	cases := []domainauth.RegisterInput{}
 	for _, name := range []string{" ", strings.Repeat("a", 101), "a\x00b", "\xff"} {
 		in := valid
-		in.Name = name
+		in.FirstName = name
 		cases = append(cases, in)
 	}
 	for _, email := range []string{"bad", "An <an@example.test>", "<an@example.test>", strings.Repeat("a", 250) + "@x.test", "a\x00@x.test"} {
@@ -81,8 +81,19 @@ func TestRegisterRejectsInputBeforeDependencies(t *testing.T) {
 		cases = append(cases, in)
 	}
 	for i, in := range cases {
-		if _, err := domainauth.NewRegister(fakeUsers{}, fakePasswords{}).Execute(context.Background(), in); !errors.Is(err, domainauth.ErrInvalidInput) {
-			t.Fatalf("case %d: expected invalid input", i)
+		users := fakeUsers{create: func(context.Context, repository.CreateUser) (entity.User, error) {
+			t.Fatal("repository called for invalid input")
+			return entity.User{}, nil
+		}}
+		passwords := fakePasswords{hash: func(string) (string, error) {
+			t.Fatal("password hasher called for invalid input")
+			return "", nil
+		}}
+		_, err := domainauth.NewRegister(users, passwords).Execute(context.Background(), in)
+		if ve, ok := domainauth.IsValidationError(err); !ok {
+			t.Fatalf("case %d: expected validation error, got %v", i, err)
+		} else if ve.Field == "" {
+			t.Fatalf("case %d: empty validation error field", i)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())

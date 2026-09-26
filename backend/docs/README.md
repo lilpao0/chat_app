@@ -37,7 +37,7 @@ The stack follows the roadmap: Go, Gin, PostgreSQL, `database/sql`, bcrypt, JWT,
 
 ## Build and continuation
 
-From `backend/`, run `go test ./...` and `go vet ./...`. Repository integration tests require TEST_DATABASE_URL pointing to chat_app_test; without it they skip. Password adapter and JSON hash-exclusion tests run without a database. See [backend README](../README.md) for database configuration and migration instructions. The server requires `DATABASE_URL`; `HTTP_PORT` defaults to 8080.
+From `backend/`, run `go test ./...` and `go vet ./...`. PostgreSQL integration tests are mandatory: they use `TEST_DATABASE_URL`, or derive `chat_app_test` from the local `.env` development URL, and fail rather than skip when the isolated database is unavailable. See [backend README](../README.md) for database configuration and migration instructions. The server requires `DATABASE_URL`; `HTTP_PORT` defaults to 8080.
 
 Continue with B30 after confirming mobile-only or also Flutter Web. D08-D09 were confirmed as option 1 and implemented. The user authorizes continuation until a question needs their decision.
 

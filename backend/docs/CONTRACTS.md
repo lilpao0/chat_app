@@ -26,7 +26,9 @@ Implemented through B29 and extension X01-X03: **health, authentication, user se
 | HTTP | Code | Situation |
 |---|---|---|
 | 400 | `invalid_input` | Invalid JSON/path/query/body, or a message marker outside the conversation the caller may access |
-| 401 | `unauthenticated` | Missing, invalid, or expired token; incorrect login email/password uses one shared message |
+| 401 | `invalid_credentials` | Login email does not exist or password is incorrect; both cases use one shared response |
+| 401 | `unauthenticated` | Missing, invalid, or expired access token |
+| 401 | `invalid_refresh_token` | Missing, invalid, expired, or wrong-type refresh token |
 | 404 | `not_found` | Conversation does not exist or the caller is not a member |
 | 409 | `email_taken` | Registration email is already in use |
 | 413 | `payload_too_large` | Body exceeds the limit |
@@ -81,6 +83,7 @@ The 72-byte limit matches [Go's bcrypt package](https://pkg.go.dev/golang.org/x/
 | `GET /health` | No | None | 200 `{"status":"ok"}`; confirms only that the HTTP process responds, not DB health |
 | `POST /api/auth/register` | No | `name`, `email`, `password` | 201 `{"user": <Public user>}`; no token issued |
 | `POST /api/auth/login` | No | `email`, `password` | 200 as illustrated below |
+| `POST /api/auth/refresh` | No | `refresh_token` | 200 with a new access token |
 | `GET /api/users` | Yes | `q`, optional `limit`/`after_id` | 200 paginated public user summaries excluding the caller |
 | `POST /api/conversations/direct` | Yes | `user_id` | 201 new or 200 existing direct conversation |
 | `GET /api/conversations` | Yes | None | 200 array of the caller's conversations |
@@ -89,7 +92,7 @@ The 72-byte limit matches [Go's bcrypt package](https://pkg.go.dev/golang.org/x/
 | `POST /api/conversations/:id/read` | Yes | `last_read_message_id` | 200 with the effective updated marker |
 | Upgrade `GET /ws` | Yes | Handshake described below | 101 after successful authentication |
 
-User discovery and opening direct chats were added under U11. There is still no group chat, refresh-token, server-logout, or `/me` API. Newly registered users initially receive `[]` until opening a chat.
+User discovery and opening direct chats were added under U11. There is still no group chat, server-side logout/revocation, or `/me` API. Newly registered users initially receive `[]` until opening a chat.
 
 User discovery accepts a trimmed `q` of 2-254 Unicode code points. It searches literal name substrings without wildcard interpretation or exact email (case-insensitive). It never returns the caller or another user's email/hash. Optional `limit` defaults to 20 and is at most 50; `after_id` is a positive integer. Results use ascending user IDs with one extra row to determine `has_more`:
 
@@ -105,11 +108,15 @@ Successful login:
 {
   "access_token": "<token>",
   "expires_at": "2026-09-19T03:00:00Z",
+  "refresh_token": "<refresh-token>",
+  "refresh_expires_at": "2026-10-19T03:00:00Z",
   "user": {"id": 1, "name": "An", "email": "an@example.test", "avatar_url": ""}
 }
 ```
 
-The auth adapter signs/verifies tokens; middleware extracts the actor ID from a valid token; use cases still enforce resource authorization. JWTs require a valid signature, an allowed algorithm, valid `exp` and `sub`, and the configured issuer/audience; fixed algorithm selection and audience verification follow [RFC 8725](https://www.rfc-editor.org/rfc/rfc8725.html). The proposed demo TTL is 24 hours; expiration requires login again. Client logout deletes the stored token and closes the socket; the server does not revoke the old token yet. Do not promise permanent sessions.
+The auth adapter signs/verifies tokens; middleware extracts the actor ID only from a token carrying `type=access`; use cases still enforce resource authorization. JWTs require a valid signature, an allowed algorithm, valid `exp` and `sub`, and the configured issuer/audience; fixed algorithm selection and audience verification follow [RFC 8725](https://www.rfc-editor.org/rfc/rfc8725.html). Access tokens default to 24 hours. Refresh tokens carry `type=refresh`, default to 30 days, cannot access protected resources, and may obtain a new access token through `POST /api/auth/refresh`. Access tokens cannot be used as refresh tokens.
+
+This intentionally simple MVP does not persist, rotate, or revoke refresh tokens. A valid refresh token can be reused until expiration, and client logout only deletes its local tokens. Production hardening should use server-side sessions, hashed opaque refresh tokens, rotation/reuse detection, and revocation.
 
 Conversation list:
 
@@ -238,6 +245,7 @@ The API and seed commands load optional `.env` values from the current working d
 | `JWT_ISSUER` | Proposed default `chat-app` | B12 |
 | `JWT_AUDIENCE` | Proposed default `chat-app-mobile`; adjust if additional platforms are confirmed | B12 |
 | `JWT_TTL` | Default `24h`; duration of at least 1s for JWT second precision; a demo value rather than production policy | B12 |
+| `JWT_REFRESH_TTL` | Default `720h` (30 days); duration of at least 1s; refresh JWT lifetime for the simple MVP flow | U12 |
 | A/B seed configuration | Demo emails/names and local passwords supplied by the operator; required only by the seed, not normal server execution | B17 |
 | WS origin, buffer, timeout | Select and document concrete values during lifecycle work; no default wildcard origin | B30–B31 |
 

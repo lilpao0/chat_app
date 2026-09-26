@@ -10,6 +10,38 @@
 
 **Latest handoff (2026-09-21):** B01-B29 of the original plan and X01-X03 extension items are DONE. See [discovery handoff](DISCOVERY_PROGRESS.md), [REST chat handoff](CHAT_PROGRESS.md), and [authentication handoff](AUTH_PROGRESS.md). U11 added search/open direct chat. B30 awaits the Flutter platform choice. The user authorizes continuation until a question needs their answer (U09).
 
+### X04 — DONE — Simple refresh-token flow
+
+- **Scope:** login issues typed access and refresh JWTs; public `POST /api/auth/refresh` exchanges a valid refresh token for a new access token. `JWT_REFRESH_TTL` defaults to 720h.
+- **Security boundary:** access and refresh tokens cannot substitute for each other. This simple user-requested version has no persistence, rotation, reuse detection, logout endpoint, or server-side revocation.
+- **Verification:** adapter, use-case, handler, configuration, and production-router tests cover successful refresh, invalid/empty tokens, wrong token type, expiry/error mapping, and protected-route rejection.
+
+### X05 — DONE — Mandatory real-database test audit
+
+- **Scope:** review registration, login, refresh, JWT middleware, and PostgreSQL integration without allowing database tests to skip.
+- **Changed:** created the isolated local `chat_app_test` database; centralized DB tests on `testutil.Database`; load the current consolidated migration in a random private schema; derive the local test URL from `.env` when `TEST_DATABASE_URL` is absent; fail unless the actual database name is `chat_app_test`.
+- **Fixes found by mandatory tests:** updated the auth integration request from obsolete `name` to `first_name`/`last_name`; updated conversation listing from removed `users.name` to the current split-name schema.
+- **Verification:** no Go `t.Skip`/`Skipf` remains. Full tests execute real PostgreSQL coverage and pass. Auth coverage includes duplicate normalized registration, bcrypt persistence, shared credential errors, complete login token response, token-type separation, refresh expiry/failure, refreshed access, and secret exclusion. Swagger UI was visually checked through Computer Use.
+
+### X06 — DONE — Enforce OpenAPI/code parity
+
+- **Scope:** make the Swagger contract exact for the currently implemented REST system and fail tests when production routes or registration validation errors drift.
+- **Changed:** centralized authenticated route registration in `RegisterProtectedRoutes`; production wiring and contract tests now use the same Gin route table. Added exact registration error-code enums and precise trim, Unicode-code-point, UTF-8-byte, NUL, and preserved-content rules to OpenAPI.
+- **Verification:** contract tests compare all application method/path pairs, public versus Bearer-protected operations, required registration fields, unknown-field rejection, and error codes derived from the actual exported domain validation errors. All OpenAPI references and presentation tests pass.
+
+### X07 — DONE — Separate HTTP 401 error codes
+
+- **Scope:** let clients distinguish failed login, failed access-token authentication, and failed refresh-token authentication without revealing whether a login email exists.
+- **Contract:** login returns `invalid_credentials`; protected middleware returns `unauthenticated`; refresh returns `invalid_refresh_token`. Each uses HTTP 401, and unknown-email/wrong-password login responses remain identical.
+- **Verification:** handler and real PostgreSQL integration tests assert `invalid_credentials` and identical credential-failure bodies. OpenAPI contract tests lock all three 401 mappings.
+
+### X08 — DONE — Synchronize the Postman REST collection
+
+- **Scope:** update the runnable Postman flow to match the current registration, login, refresh, chat, and error contracts.
+- **Changed:** registration uses `first_name`/`last_name`; login captures access and refresh tokens plus expirations; added access-token refresh and explicit checks for `invalid_credentials`, `unauthenticated`, and `invalid_refresh_token`. The runner now contains 17 ordered requests and covers every OpenAPI operation.
+- **Follow-up:** removed the email generator, all pre-request scripts, and every script that mutates Postman variables. IDs and tokens are copied manually using descriptions on the collection variables; remaining test scripts only assert responses and never change data.
+- **Verification:** the collection parses as Postman Collection v2.1 JSON. A Go contract test checks that every OpenAPI method/path is represented and that registration bodies use the current fields. Newman was not installed, so no Newman execution was claimed.
+
 ## User-requested extension (U11)
 
 ### X01 — DONE — Search existing users
@@ -272,6 +304,13 @@ Each item specifies dependencies, verification, and concepts to explain. **Every
 - **Dependencies:** B15, B20, B28. Connect `POST /api/conversations/:id/read` with `last_read_message_id` according to CONTRACTS.
 - **Verify / explain:** B reads through a message and B's unread count decreases correctly; A's marker is unchanged; messages B has not seen remain unread. Explain the read response's relationship to refreshing the conversation list.
 
+## S01 — DONE — Interactive OpenAPI documentation
+
+- **Assigned request:** add Swagger documentation for the whole currently implemented system.
+- **Changed:** added an embedded OpenAPI 3.0 JSON contract for all current paths and operations, including JWT bearer authentication, request/response schemas, pagination, validation limits, status codes, and reusable errors. Added public `/swagger`, `/swagger/index.html`, and `/swagger/openapi.json` routes without changing application business logic. X04 subsequently added the refresh operation to the same contract.
+- **Verified:** Swagger package and all presentation HTTP tests pass; the contract test parses the embedded JSON and checks every implemented application path. Full repository checks and a live-browser smoke test are recorded in the handoff entry below.
+- **Boundary:** Swagger UI assets are pinned to Swagger UI 5.17.14 on jsDelivr, so the interactive page needs internet access; the OpenAPI contract itself is embedded and always served locally. WebSocket remains outside the spec because B30-B32 are not implemented.
+
 ## B30 — TODO — Authenticated WebSocket handshake
 
 - **Dependencies:** B12, B15, B29; confirm the target Flutter platform from DECISIONS before selecting token transport. Select a WS library and create `/ws` accepting only authorized connections.
@@ -298,6 +337,32 @@ Each item specifies dependencies, verification, and concepts to explain. **Every
 - **Verify / explain:** follow the documentation in an appropriate test environment and record verified/unverified parts; do not declare the MVP complete while criteria are missing. Explain how the next agent starts the system, verifies it, locates layers, and chooses the next task.
 
 ## Handoff log
+
+### 2026-09-25 — Registration input normalization cleanup
+
+- **Status:** DONE. The user requested the small cleanup discussed while reviewing presentation versus domain validation.
+- **Changed:** `Register.Execute` now normalizes first name, last name, and email once at the use-case boundary before validating them; password remains byte-for-byte unchanged. Registration then uses only the normalized input for persistence. The registration test now exercises `Execute` directly and proves invalid input cannot reach the password hasher or repository.
+- **Contract:** no HTTP request/response, validation limit, or stored-data contract changed.
+- **Verified:** `gofmt` completed; `go test -count=1 ./internal/domain/usecase/auth/...` and `go vet ./...` passed. `go test -count=1 ./...` passed all non-database packages but the full command failed because the required isolated `chat_app_test` database was unavailable. Diff checks passed for the files changed in this cleanup.
+- **Next:** continue the user's architecture/router questions; B30 remains the next unimplemented product item and still requires the Flutter platform decision.
+
+### 2026-09-23 — X04: Simple refresh-token flow
+
+- **Status:** DONE. The user selected a simple refresh-token implementation for the current MVP.
+- **Changed:** login issues typed access/refresh JWTs and returns both expirations; `POST /api/auth/refresh` validates a refresh JWT and issues a new access JWT; `JWT_REFRESH_TTL` defaults to 720h. Updated configuration, Swagger, contracts, decisions, README, and authentication handoff.
+- **Security boundary:** middleware accepts only `type=access`; refresh accepts only `type=refresh`. The endpoint uses the existing JSON limits and returns `Cache-Control: no-store`.
+- **Verified:** adapter, use-case, handler, configuration, router, and full repository tests pass; `go vet ./...` and `git diff --check` pass. A temporary live server returned 401 for an invalid refresh token, exposed the refresh operation in its nine-path Swagger contract, and shut down gracefully. PostgreSQL integration remains conditional on `TEST_DATABASE_URL`.
+- **Known limitation:** refresh JWTs are stateless and reusable until expiry. There is no rotation, token reuse detection, database session, logout endpoint, or server-side revocation.
+- **Next:** connect the Flutter client to login/refresh and secure storage, or resolve the platform choice before B30 WebSocket authentication.
+
+### 2026-09-23 — S01: Interactive OpenAPI documentation
+
+- **Status:** DONE. The user directly requested Swagger coverage for the complete currently implemented backend.
+- **Changed:** added `internal/presentation/http/swagger` with an embedded OpenAPI 3.0.3 contract, a Swagger UI page, redirect/spec routes, and route/spec tests; registered it from the production router; documented the URL and authorization workflow in the backend README.
+- **Coverage:** health, register, login, user search, open direct conversation, conversation list, send/history messages, and mark-read are documented with their actual authentication, media type, body-size, validation, pagination, response, and error contracts.
+- **Verified:** `go test ./internal/presentation/http/swagger ./internal/presentation/http/...`, `go test ./...`, `go vet ./...`, and `git diff --check` passed. A temporary server on port 18081 returned HTTP 200 for the UI and served OpenAPI 3.0.3 with 8 paths and 9 operations; it then shut down gracefully.
+- **Unverified / incomplete:** WebSocket is intentionally absent until B30-B32 exist. The UI shell depends on pinned CDN assets; `/swagger/openapi.json` does not.
+- **Next:** B30 remains the next product item and still requires the Flutter platform decision.
 
 ### 2026-09-18 — Documentation preparation
 

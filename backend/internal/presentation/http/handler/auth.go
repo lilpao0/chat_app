@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
@@ -74,18 +75,24 @@ func readJSON(c *gin.Context, dst any) bool {
 
 func (h *RegisterHandler) Handle(c *gin.Context) {
 	var input struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Email     string `json:"email"`
+		Password  string `json:"password"`
 	}
 	if !readJSON(c, &input) {
 		return
 	}
-	user, err := h.usecase.Execute(c.Request.Context(), auth.RegisterInput{Name: input.Name, Email: input.Email, Password: input.Password})
-	if errors.Is(err, auth.ErrInvalidInput) {
-		response.Error(c, 400, "invalid_input", "The submitted information is invalid.")
+	user, err := h.usecase.Execute(c.Request.Context(), auth.RegisterInput{FirstName: input.FirstName, LastName: input.LastName, Email: input.Email, Password: input.Password})
+
+	// Check for specific validation errors
+	var ve auth.ValidationError
+	if errors.As(err, &ve) {
+		code := strings.ToLower(strings.ReplaceAll(ve.Message, " ", "_"))
+		response.Error(c, 400, code, ve.Message)
 		return
 	}
+
 	if errors.Is(err, entity.ErrEmailTaken) {
 		response.Error(c, 409, "email_taken", "Email is already in use.")
 		return

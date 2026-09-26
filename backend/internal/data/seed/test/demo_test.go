@@ -21,13 +21,13 @@ func TestDemo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := repository.CreateUser{Name: "A", Email: "a@example.test", PasswordHash: hash}
-	b := repository.CreateUser{Name: "B", Email: "b@example.test", PasswordHash: hash}
+	a := repository.CreateUser{FirstName: "A", LastName: "", Email: "a@example.test", PasswordHash: hash}
+	b := repository.CreateUser{FirstName: "B", LastName: "", Email: "b@example.test", PasswordHash: hash}
 	first, err := seed.Demo(ctx, db, a, b)
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.Name = "replacement"
+	a.FirstName = "replacement"
 	a.PasswordHash = "must-not-overwrite"
 	second, err := seed.Demo(ctx, db, a, b)
 	if err != nil || first != second {

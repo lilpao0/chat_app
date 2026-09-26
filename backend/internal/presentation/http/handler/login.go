@@ -27,12 +27,8 @@ func (h *LoginHandler) Handle(c *gin.Context) {
 		return
 	}
 	result, err := h.usecase.Execute(c.Request.Context(), auth.LoginInput{Email: input.Email, Password: input.Password})
-	if errors.Is(err, auth.ErrInvalidInput) {
-		response.Error(c, 400, "invalid_input", "The submitted information is invalid.")
-		return
-	}
 	if errors.Is(err, auth.ErrInvalidCredentials) {
-		response.Error(c, 401, "unauthenticated", "Invalid email or password.")
+		response.Error(c, 401, "invalid_credentials", "Invalid email or password.")
 		return
 	}
 	if err != nil {
@@ -40,5 +36,11 @@ func (h *LoginHandler) Handle(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOK, gin.H{"user": toUserDTO(result.User), "access_token": result.Token.Value, "expires_at": result.Token.ExpiresAt.UTC().Format(time.RFC3339)})
+	c.JSON(http.StatusOK, gin.H{
+		"user":               toUserDTO(result.User),
+		"access_token":       result.Token.Value,
+		"expires_at":         result.Token.ExpiresAt.UTC().Format(time.RFC3339),
+		"refresh_token":      result.RefreshToken.Value,
+		"refresh_expires_at": result.RefreshToken.ExpiresAt.UTC().Format(time.RFC3339),
+	})
 }

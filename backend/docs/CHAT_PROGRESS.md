@@ -50,7 +50,7 @@ PostgreSQL tests show reading through message 2 leaves message 3 unread, older r
 
 ## Verification and next step
 
-`go test -count=1 ./...` and `go test -race -count=1 ./...` passed with TEST_DATABASE_URL configured, including migration, seed, transaction, pagination, authorization and read-state tests. `go vet ./...` and `git diff --check` passed. Private schemas are removed at cleanup; existing data is preserved. Without TEST_DATABASE_URL, database tests skip.
+`go test -count=1 ./...` and `go test -race -count=1 ./...` passed with `chat_app_test`, including migration, seed, transaction, pagination, authorization and read-state tests. `go vet ./...` and `git diff --check` passed. Private schemas are removed at cleanup; existing data is preserved. Database tests are mandatory and fail rather than skip when the isolated database is unavailable.
 
 No standalone server/Flutter demo or production DB migration was performed in this session. Before running chat locally, apply both migrations and run the seed explicitly with operator-provided environment values. Source-level checks and integration tests are not a claim of B33/B34 acceptance completion.
 

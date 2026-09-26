@@ -39,9 +39,9 @@ type pageResponse struct {
 func TestRESTChatFlow(t *testing.T) {
 	db := testutil.Database(t)
 	ctx := context.Background()
-	a := repository.CreateUser{Name: "A", Email: "a@example.test", PasswordHash: "fixture-hash"}
-	b := repository.CreateUser{Name: "B", Email: "b@example.test", PasswordHash: "fixture-hash"}
-	c := repository.CreateUser{Name: "C", Email: "c@example.test", PasswordHash: "fixture-hash"}
+	a := repository.CreateUser{FirstName: "A", LastName: "", Email: "a@example.test", PasswordHash: "fixture-hash"}
+	b := repository.CreateUser{FirstName: "B", LastName: "", Email: "b@example.test", PasswordHash: "fixture-hash"}
+	c := repository.CreateUser{FirstName: "C", LastName: "", Email: "c@example.test", PasswordHash: "fixture-hash"}
 	ab, err := seed.Demo(ctx, db, a, b)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestRESTChatFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	gin.SetMode(gin.TestMode)
-	r, protected := presentation.NewRouter(domainauth.NewRegister(users, dataauth.BcryptPasswordHasher{}), domainauth.NewLogin(users, dataauth.BcryptPasswordHasher{}, tokens), tokens)
+	r, protected := presentation.NewRouter(domainauth.NewRegister(users, dataauth.BcryptPasswordHasher{}), domainauth.NewLogin(users, dataauth.BcryptPasswordHasher{}, tokens), domainauth.NewRefresh(tokens), tokens)
 	messages := datarepo.NewPostgresMessageRepository(db)
 	conversations := datarepo.NewPostgresConversationRepository(db)
 	protected.GET("/conversations", handler.NewConversationsHandler(conversation.NewList(conversations)).List)

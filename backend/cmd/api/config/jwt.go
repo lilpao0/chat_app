@@ -9,7 +9,7 @@ import (
 
 type JWTConfig struct {
 	Secret, Issuer, Audience string
-	TTL                      time.Duration
+	TTL, RefreshTTL          time.Duration
 }
 
 func LoadJWT() (JWTConfig, error) {
@@ -36,5 +36,13 @@ func LoadJWT() (JWTConfig, error) {
 		}
 		ttl = parsed
 	}
-	return JWTConfig{Secret: secret, Issuer: issuer, Audience: audience, TTL: ttl}, nil
+	refreshTTL := 30 * 24 * time.Hour
+	if raw := os.Getenv("JWT_REFRESH_TTL"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed < time.Second {
+			return JWTConfig{}, errors.New("JWT_REFRESH_TTL must be a duration of at least one second")
+		}
+		refreshTTL = parsed
+	}
+	return JWTConfig{Secret: secret, Issuer: issuer, Audience: audience, TTL: ttl, RefreshTTL: refreshTTL}, nil
 }

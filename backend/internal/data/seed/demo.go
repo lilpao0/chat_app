@@ -28,7 +28,7 @@ func Demo(ctx context.Context, db *sql.DB, a, b repository.CreateUser) (Result, 
 	}
 	ids := make([]int64, 2)
 	for i, input := range []repository.CreateUser{a, b} {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO users(name,email,password_hash) VALUES ($1,$2,$3) ON CONFLICT (email) DO NOTHING`, input.Name, input.Email, input.PasswordHash); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO users(first_name, last_name, email, password_hash) VALUES ($1,$2,$3,$4) ON CONFLICT (email) DO NOTHING`, input.FirstName, input.LastName, input.Email, input.PasswordHash); err != nil {
 			return Result{}, err
 		}
 		if err := tx.QueryRowContext(ctx, `SELECT id FROM users WHERE email=$1`, input.Email).Scan(&ids[i]); err != nil {

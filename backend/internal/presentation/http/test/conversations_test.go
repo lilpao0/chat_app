@@ -28,12 +28,12 @@ func TestConversationList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fixture, err := seed.Demo(ctx, db, repository.CreateUser{Name: "A", Email: "a@example.test", PasswordHash: hash}, repository.CreateUser{Name: "B", Email: "b@example.test", PasswordHash: hash})
+	fixture, err := seed.Demo(ctx, db, repository.CreateUser{FirstName: "A", LastName: "", Email: "a@example.test", PasswordHash: hash}, repository.CreateUser{FirstName: "B", LastName: "", Email: "b@example.test", PasswordHash: hash})
 	if err != nil {
 		t.Fatal(err)
 	}
 	users := datarepo.NewPostgresUserRepository(db)
-	outsider, err := users.Create(ctx, repository.CreateUser{Name: "C", Email: "c@example.test", PasswordHash: hash})
+	outsider, err := users.Create(ctx, repository.CreateUser{FirstName: "C", LastName: "", Email: "c@example.test", PasswordHash: hash})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestConversationList(t *testing.T) {
 		t.Fatal(err)
 	}
 	gin.SetMode(gin.TestMode)
-	r, protected := presentation.NewRouter(domainauth.NewRegister(users, passwords), domainauth.NewLogin(users, passwords, tokens), tokens)
+	r, protected := presentation.NewRouter(domainauth.NewRegister(users, passwords), domainauth.NewLogin(users, passwords, tokens), domainauth.NewRefresh(tokens), tokens)
 	repo := datarepo.NewPostgresConversationRepository(db)
 	protected.GET("/conversations", handler.NewConversationsHandler(conversation.NewList(repo)).List)
 	get := func(userID int64) *httptest.ResponseRecorder {

@@ -32,7 +32,7 @@ func account(prefix string) (repository.CreateUser, error) {
 	if err != nil {
 		return repository.CreateUser{}, fmt.Errorf("%s_PASSWORD does not meet the password policy", prefix)
 	}
-	return repository.CreateUser{Name: name, Email: email, PasswordHash: hash}, nil
+	return repository.CreateUser{FirstName: name, Email: email, PasswordHash: hash}, nil
 }
 
 func run() error {

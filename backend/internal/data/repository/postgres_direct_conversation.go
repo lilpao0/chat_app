@@ -42,7 +42,7 @@ func OpenDirectInTx(ctx context.Context, tx *sql.Tx, actorID, otherID int64) (en
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, key); err != nil {
 		return entity.DirectConversation{}, fmt.Errorf("lock direct pair: %w", err)
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT id,name,avatar_url FROM users WHERE id IN ($1,$2) ORDER BY id FOR KEY SHARE`, low, high)
+	rows, err := tx.QueryContext(ctx, `SELECT id, first_name || ' ' || last_name, avatar_url FROM users WHERE id IN ($1,$2) ORDER BY id FOR KEY SHARE`, low, high)
 	if err != nil {
 		return entity.DirectConversation{}, fmt.Errorf("find direct participants: %w", err)
 	}

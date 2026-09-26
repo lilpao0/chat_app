@@ -17,7 +17,7 @@ func TestSendTransaction(t *testing.T) {
 	db := testutil.Database(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	f, err := seed.Demo(ctx, db, repository.CreateUser{Name: "A", Email: "a@x.test", PasswordHash: "fixture-hash"}, repository.CreateUser{Name: "B", Email: "b@x.test", PasswordHash: "fixture-hash"})
+	f, err := seed.Demo(ctx, db, repository.CreateUser{FirstName: "A", Email: "a@x.test", PasswordHash: "fixture-hash"}, repository.CreateUser{FirstName: "B", Email: "b@x.test", PasswordHash: "fixture-hash"})
 	if err != nil {
 		t.Fatal(err)
 	}

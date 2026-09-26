@@ -13,8 +13,9 @@ var ErrInvalidCredentials = errors.New("invalid email or password")
 
 type LoginInput struct{ Email, Password string }
 type LoginResult struct {
-	User  PublicUser
-	Token AccessToken
+	User         PublicUser
+	Token        AccessToken
+	RefreshToken RefreshToken
 }
 type Login struct {
 	users     repository.UserRepository
@@ -30,9 +31,9 @@ func (u *Login) Execute(ctx context.Context, input LoginInput) (LoginResult, err
 	if err := ctx.Err(); err != nil {
 		return LoginResult{}, err
 	}
-	email, err := normalizeEmail(input.Email)
+	email, err := NormalizeEmail(input.Email)
 	if err != nil || ValidatePassword(input.Password) != nil {
-		return LoginResult{}, ErrInvalidInput
+		return LoginResult{}, ErrInvalidCredentials
 	}
 	user, err := u.users.FindByEmail(ctx, email)
 	if errors.Is(err, entity.ErrUserNotFound) {
@@ -55,5 +56,9 @@ func (u *Login) Execute(ctx context.Context, input LoginInput) (LoginResult, err
 	if err != nil {
 		return LoginResult{}, fmt.Errorf("issue login token: %w", err)
 	}
-	return LoginResult{User: publicUser(user), Token: token}, nil
+	refreshToken, err := u.tokens.IssueRefresh(user.ID)
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("issue login refresh token: %w", err)
+	}
+	return LoginResult{User: publicUser(user), Token: token, RefreshToken: refreshToken}, nil
 }

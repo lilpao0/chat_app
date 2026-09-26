@@ -43,7 +43,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load JWT config: %w", err)
 	}
-	tokens, err := dataauth.NewJWT(jwtCfg.Secret, jwtCfg.Issuer, jwtCfg.Audience, jwtCfg.TTL)
+	tokens, err := dataauth.NewJWTWithRefreshTTL(jwtCfg.Secret, jwtCfg.Issuer, jwtCfg.Audience, jwtCfg.TTL, jwtCfg.RefreshTTL)
 	if err != nil {
 		return err
 	}
@@ -74,16 +74,19 @@ func run() error {
 	passwords := dataauth.BcryptPasswordHasher{}
 	register := domainauth.NewRegister(users, passwords)
 	login := domainauth.NewLogin(users, passwords, tokens)
-	r, protected := presentation.NewRouter(register, login, tokens)
+	refresh := domainauth.NewRefresh(tokens)
+	r, protected := presentation.NewRouter(register, login, refresh, tokens)
 	conversations := datarepo.NewPostgresConversationRepository(db)
 	discovery := handler.NewDiscoveryHandler(user.NewSearch(users), conversation.NewOpenDirect(conversations))
-	protected.GET("/users", discovery.Search)
-	protected.POST("/conversations/direct", discovery.OpenDirect)
-	protected.GET("/conversations", handler.NewConversationsHandler(conversation.NewList(conversations)).List)
 	messages := datarepo.NewPostgresMessageRepository(db)
-	protected.POST("/conversations/:id/messages", handler.NewSendMessageHandler(message.NewSend(messages)).Send)
-	protected.GET("/conversations/:id/messages", handler.NewHistoryHandler(message.NewHistory(messages)).Get)
-	protected.POST("/conversations/:id/read", handler.NewReadHandler(conversation.NewMarkRead(messages)).Mark)
+	presentation.RegisterProtectedRoutes(protected, presentation.ProtectedHandlers{
+		SearchUsers:       discovery.Search,
+		OpenDirect:        discovery.OpenDirect,
+		ListConversations: handler.NewConversationsHandler(conversation.NewList(conversations)).List,
+		SendMessage:       handler.NewSendMessageHandler(message.NewSend(messages)).Send,
+		MessageHistory:    handler.NewHistoryHandler(message.NewHistory(messages)).Get,
+		MarkRead:          handler.NewReadHandler(conversation.NewMarkRead(messages)).Mark,
+	})
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", httpCfg.Port),

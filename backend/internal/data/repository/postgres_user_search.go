@@ -14,8 +14,8 @@ func (r *PostgresUserRepository) Search(ctx context.Context, actorID int64, q en
 		return entity.UserSearchPage{}, entity.ErrInvalidInput
 	}
 	// strpos treats %, _ and SQL-looking text literally. Email requires an exact match.
-	query := `SELECT id,name,avatar_url FROM users
- WHERE id<>$1 AND id>$3 AND (strpos(lower(name),lower($2))>0 OR lower(email)=lower($2))
+	query := `SELECT id, first_name || ' ' || last_name, avatar_url FROM users
+ WHERE id<>$1 AND id>$3 AND (strpos(lower(first_name || ' ' || last_name),lower($2))>0 OR lower(email)=lower($2))
  ORDER BY id ASC LIMIT $4`
 	rows, err := r.db.QueryContext(ctx, query, actorID, q.Text, q.AfterID, q.Limit+1)
 	if err != nil {

@@ -20,7 +20,7 @@ func (r *PostgresConversationRepository) ListForUser(ctx context.Context, userID
 	rows, err := r.db.QueryContext(ctx, `SELECT c.id,other.id,other.name,other.avatar_url,last.content,last.created_at,
  (SELECT count(*) FROM messages m WHERE m.conversation_id=c.id AND m.sender_id<>$1 AND m.id>COALESCE(own.last_read_message_id,0))
  FROM conversation_members own JOIN conversations c ON c.id=own.conversation_id
- JOIN LATERAL (SELECT u.id,u.name,u.avatar_url FROM conversation_members cm JOIN users u ON u.id=cm.user_id WHERE cm.conversation_id=c.id AND cm.user_id<>$1 ORDER BY u.id LIMIT 1) other ON true
+ JOIN LATERAL (SELECT u.id,concat_ws(' ',u.first_name,NULLIF(u.last_name,'')) AS name,u.avatar_url FROM conversation_members cm JOIN users u ON u.id=cm.user_id WHERE cm.conversation_id=c.id AND cm.user_id<>$1 ORDER BY u.id LIMIT 1) other ON true
  LEFT JOIN LATERAL (SELECT content,created_at FROM messages WHERE conversation_id=c.id ORDER BY id DESC LIMIT 1) last ON true
  WHERE own.user_id=$1 ORDER BY c.updated_at DESC,c.id DESC`, userID)
 	if err != nil {

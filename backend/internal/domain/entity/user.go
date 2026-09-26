@@ -12,6 +12,8 @@ var (
 
 type User struct {
 	ID           int64
+	FirstName    string
+	LastName     string
 	Name         string
 	Email        string
 	PasswordHash string `json:"-"`

@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Chat App REST — Before WebSocket",
-    "description": "Run requests 01–14 in order (Collection Runner). Register A generates unique emails for each run. Set password to a valid test password before running. Requires API on baseUrl and migrations 000001/000002. This collection writes demo users, a conversation, and one message to the configured database; it does not test WebSocket.",
+    "name": "Chat App REST — Complete REST Flow",
+    "description": "Run requests 01–17 manually in order. Before each dependent request, copy IDs and tokens from the previous response into the collection variables; this collection intentionally contains no scripts that generate or overwrite variable data. Set emailA, emailB, and password before registration. Password must contain 8+ Unicode code points and at most 72 UTF-8 bytes. Requires the API on baseUrl with current migrations applied. The requests cover registration, login, access/refresh tokens, user discovery, direct chat, messaging, unread/read state, conversation reuse, and the three HTTP 401 error codes. WebSocket is intentionally outside this REST collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -41,25 +41,12 @@
       "name": "02 Register A",
       "event": [
         {
-          "listen": "prerequest",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "const suffix = Date.now().toString();",
-              "pm.collectionVariables.set(\"emailA\", `test-a-${suffix}@example.com`);",
-              "pm.collectionVariables.set(\"emailB\", `test-b-${suffix}@example.com`);",
-              "if (!pm.collectionVariables.get(\"password\")) { throw new Error(\"Set the collection variable password before running.\"); }"
-            ]
-          }
-        },
-        {
           "listen": "test",
           "script": {
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
-              "const body = pm.response.json();",
-              "pm.collectionVariables.set(\"userAId\", body.user.id);"
+              "pm.test(\"Public user returned\", function () { const body = pm.response.json(); pm.expect(body.user.id).to.be.a(\"number\"); pm.expect(body.user.email).to.eql(pm.variables.get(\"emailA\")); pm.expect(body.user).not.to.have.property(\"password_hash\"); });"
             ]
           }
         }
@@ -88,7 +75,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Test A\",\n  \"email\": \"{{emailA}}\",\n  \"password\": \"{{password}}\"\n}",
+          "raw": "{\n  \"first_name\": \"Test\",\n  \"last_name\": \"A\",\n  \"email\": \"{{emailA}}\",\n  \"password\": \"{{password}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -107,8 +94,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
-              "const body = pm.response.json();",
-              "pm.collectionVariables.set(\"userBId\", body.user.id);"
+              "pm.test(\"Public user returned\", function () { const body = pm.response.json(); pm.expect(body.user.id).to.be.a(\"number\"); pm.expect(body.user.email).to.eql(pm.variables.get(\"emailB\")); pm.expect(body.user).not.to.have.property(\"password_hash\"); });"
             ]
           }
         }
@@ -137,7 +123,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"Test B\",\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}",
+          "raw": "{\n  \"first_name\": \"Test\",\n  \"last_name\": \"B\",\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -157,7 +143,8 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.collectionVariables.set(\"tokenA\", body.access_token);"
+              "pm.test(\"Complete token response\", function () { pm.expect(body.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.refresh_token).to.be.a(\"string\").and.not.empty; pm.expect(body.expires_at).to.be.a(\"string\"); pm.expect(body.refresh_expires_at).to.be.a(\"string\"); pm.expect(new Date(body.refresh_expires_at).getTime()).to.be.above(new Date(body.expires_at).getTime()); });",
+              "pm.test(\"Token response is not cached\", function () { pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"); });"
             ]
           }
         }
@@ -206,7 +193,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.collectionVariables.set(\"tokenB\", body.access_token);"
+              "pm.test(\"Complete token response\", function () { pm.expect(body.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.refresh_token).to.be.a(\"string\").and.not.empty; pm.expect(body.expires_at).to.be.a(\"string\"); pm.expect(body.refresh_expires_at).to.be.a(\"string\"); });"
             ]
           }
         }
@@ -302,7 +289,6 @@
             "exec": [
               "pm.test(\"New or existing chat\", function () { pm.expect([200, 201]).to.include(pm.response.code); });",
               "const body = pm.response.json();",
-              "pm.collectionVariables.set(\"conversationId\", body.conversation.id);",
               "pm.test(\"Counterpart is B\", function () { pm.expect(String(body.conversation.user.id)).to.eql(pm.collectionVariables.get(\"userBId\")); });"
             ]
           }
@@ -359,7 +345,6 @@
             "exec": [
               "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
               "const body = pm.response.json();",
-              "pm.collectionVariables.set(\"messageId\", body.message.id);",
               "pm.test(\"Message belongs to A\", function () { pm.expect(String(body.message.sender_id)).to.eql(pm.collectionVariables.get(\"userAId\")); });"
             ]
           }
@@ -655,7 +640,8 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });"
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"Access-token error code\", function () { pm.expect(pm.response.json().error.code).to.eql(\"unauthenticated\"); });"
             ]
           }
         }
@@ -678,6 +664,152 @@
         }
       },
       "response": []
+    },
+    {
+      "name": "15 Refresh A access token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "const body = pm.response.json();",
+              "pm.test(\"New access token returned\", function () { pm.expect(body.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.expires_at).to.be.a(\"string\"); pm.expect(body).not.to.have.property(\"refresh_token\"); });",
+              "pm.test(\"Refresh response is not cached\", function () { pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/refresh",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "refresh"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refreshTokenA}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "16 Invalid login credentials",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"Login error code\", function () { const error = pm.response.json().error; pm.expect(error.code).to.eql(\"invalid_credentials\"); pm.expect(error.message).to.eql(\"Invalid email or password.\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{emailA}}\",\n  \"password\": \"wrong-password\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "17 Invalid refresh token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"Refresh error code\", function () { pm.expect(pm.response.json().error.code).to.eql(\"invalid_refresh_token\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/refresh",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "refresh"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"not-a-valid-refresh-token\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": []
     }
   ],
   "variable": [
@@ -691,35 +823,53 @@
     },
     {
       "key": "emailA",
-      "value": ""
+      "value": "",
+      "description": "Set manually to a new unique email before request 02."
     },
     {
       "key": "emailB",
-      "value": ""
+      "value": "",
+      "description": "Set manually to a different new unique email before request 03."
     },
     {
       "key": "tokenA",
-      "value": ""
+      "value": "",
+      "description": "Copy access_token from request 04; replace it with the new value from request 15 if continuing afterward."
     },
     {
       "key": "tokenB",
-      "value": ""
+      "value": "",
+      "description": "Copy access_token from request 05."
+    },
+    {
+      "key": "refreshTokenA",
+      "value": "",
+      "description": "Copy refresh_token from request 04."
+    },
+    {
+      "key": "refreshTokenB",
+      "value": "",
+      "description": "Copy refresh_token from request 05."
     },
     {
       "key": "userAId",
-      "value": ""
+      "value": "",
+      "description": "Copy user.id from request 02."
     },
     {
       "key": "userBId",
-      "value": ""
+      "value": "",
+      "description": "Copy user.id from request 03."
     },
     {
       "key": "conversationId",
-      "value": ""
+      "value": "",
+      "description": "Copy conversation.id from request 07."
     },
     {
       "key": "messageId",
-      "value": ""
+      "value": "",
+      "description": "Copy message.id from request 08."
     }
   ]
 }

@@ -2,11 +2,8 @@ package http_test
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -19,32 +16,13 @@ import (
 	domainauth "github.com/lilpao0/chat_app/backend/internal/domain/usecase/auth"
 	presentation "github.com/lilpao0/chat_app/backend/internal/presentation/http"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/middleware"
+	"github.com/lilpao0/chat_app/backend/internal/testutil"
 )
 
 func TestAuthPostgresFlow(t *testing.T) {
-	url := os.Getenv("TEST_DATABASE_URL")
-	if url == "" {
-		t.Skip("requires isolated chat_app_test")
-	}
-	db, err := sql.Open("postgres", url)
-	if err != nil {
-		t.Fatal("cannot open test database")
-	}
-	defer db.Close()
-	db.SetMaxOpenConns(1)
+	db := testutil.Database(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	var name string
-	if err := db.QueryRowContext(ctx, "SELECT current_database()").Scan(&name); err != nil || name != "chat_app_test" {
-		t.Fatal("requires connection to chat_app_test")
-	}
-	ddl, err := os.ReadFile(filepath.Join("..", "..", "..", "migrations", "000001_create_users.up.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, strings.Replace(string(ddl), "CREATE TABLE users", "CREATE TEMP TABLE users", 1)); err != nil {
-		t.Fatal(err)
-	}
 	secret := strings.Repeat("s", 32)
 	tokens, err := dataauth.NewJWT(secret, "chat-app", "chat-app-mobile", time.Hour)
 	if err != nil {
@@ -53,7 +31,7 @@ func TestAuthPostgresFlow(t *testing.T) {
 	users := datarepo.NewPostgresUserRepository(db)
 	passwords := dataauth.BcryptPasswordHasher{}
 	gin.SetMode(gin.TestMode)
-	r, protected := presentation.NewRouter(domainauth.NewRegister(users, passwords), domainauth.NewLogin(users, passwords, tokens), tokens)
+	r, protected := presentation.NewRouter(domainauth.NewRegister(users, passwords), domainauth.NewLogin(users, passwords, tokens), domainauth.NewRefresh(tokens), tokens)
 	protected.GET("/test-only", func(c *gin.Context) {
 		identity, ok := middleware.Identity(c)
 		if !ok {
@@ -79,7 +57,7 @@ func TestAuthPostgresFlow(t *testing.T) {
 		wg.Add(1)
 		go func(email string) {
 			defer wg.Done()
-			body, _ := json.Marshal(map[string]string{"name": " An ", "email": email, "password": "password123"})
+			body, _ := json.Marshal(map[string]string{"first_name": " An ", "last_name": "", "email": email, "password": "password123"})
 			out := request("POST", "/api/auth/register", string(body), "")
 			results <- out.Code
 		}(email)
@@ -109,9 +87,11 @@ func TestAuthPostgresFlow(t *testing.T) {
 		t.Fatalf("login status %d", login.Code)
 	}
 	var payload struct {
-		Token     string    `json:"access_token"`
-		ExpiresAt time.Time `json:"expires_at"`
-		User      struct {
+		Token         string    `json:"access_token"`
+		ExpiresAt     time.Time `json:"expires_at"`
+		RefreshToken  string    `json:"refresh_token"`
+		RefreshExpiry time.Time `json:"refresh_expires_at"`
+		User          struct {
 			ID int64 `json:"id"`
 		} `json:"user"`
 	}
@@ -125,6 +105,28 @@ func TestAuthPostgresFlow(t *testing.T) {
 	if strings.Contains(login.Body.String(), user.PasswordHash) || strings.Contains(login.Body.String(), "password123") {
 		t.Fatal("credentials leaked")
 	}
+	if payload.RefreshToken == "" || !payload.RefreshExpiry.After(payload.ExpiresAt) {
+		t.Fatal("login omitted refresh token or returned an invalid refresh expiry")
+	}
+	if request("GET", "/api/test-only", "", payload.RefreshToken).Code != 401 {
+		t.Fatal("refresh token accepted by protected endpoint")
+	}
+	refreshed := request("POST", "/api/auth/refresh", `{"refresh_token":"`+payload.RefreshToken+`"}`, "")
+	if refreshed.Code != 200 {
+		t.Fatalf("refresh status/body = %d/%s", refreshed.Code, refreshed.Body.String())
+	}
+	var refreshPayload struct {
+		Token string `json:"access_token"`
+	}
+	if json.Unmarshal(refreshed.Body.Bytes(), &refreshPayload) != nil || refreshPayload.Token == "" {
+		t.Fatal("refresh response omitted access token")
+	}
+	if request("GET", "/api/test-only", "", refreshPayload.Token).Code != 200 {
+		t.Fatal("refreshed access token rejected")
+	}
+	if request("POST", "/api/auth/refresh", `{"refresh_token":"`+payload.Token+`"}`, "").Code != 401 {
+		t.Fatal("access token accepted by refresh endpoint")
+	}
 	valid := request("GET", "/api/test-only?user_id=999", "", payload.Token)
 	if valid.Code != 200 {
 		t.Fatal("valid token rejected")
@@ -137,7 +139,7 @@ func TestAuthPostgresFlow(t *testing.T) {
 	}
 	wrong := request("POST", "/api/auth/login", `{"email":"an@example.test","password":"wrongpassword"}`, "")
 	missing := request("POST", "/api/auth/login", `{"email":"missing@example.test","password":"wrongpassword"}`, "")
-	if wrong.Code != 401 || missing.Code != 401 || wrong.Body.String() != missing.Body.String() {
+	if wrong.Code != 401 || missing.Code != 401 || wrong.Body.String() != missing.Body.String() || !strings.Contains(wrong.Body.String(), `"code":"invalid_credentials"`) {
 		t.Fatal("credential errors differ")
 	}
 	expired, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Subject: "1", Issuer: "chat-app", Audience: jwt.ClaimStrings{"chat-app-mobile"}, ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Hour))}).SignedString([]byte(secret))

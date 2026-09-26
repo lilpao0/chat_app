@@ -40,7 +40,13 @@ The user authorized continuation until a decision needs their answer. B10-B15 ar
 
 ## Verification and remaining work
 
+### 2026-09-23 refresh-token extension
+
+- Login now returns access and refresh JWTs with separate expiration timestamps. `POST /api/auth/refresh` validates a refresh token and returns a new access token with `Cache-Control: no-store`.
+- A required token-type claim prevents refresh tokens from authorizing protected routes and prevents access tokens from calling the refresh endpoint. `JWT_REFRESH_TTL` defaults to 720h.
+- This deliberately simple flow has no persistence, rotation, reuse detection, logout endpoint, or server-side revocation; refresh tokens remain reusable until expiry.
+
 - `go test -count=1 ./...` passed with TEST_DATABASE_URL configured for chat_app_test, including repository and full auth integration. Tests use connection-local temporary users tables derived from the active migration; persistent data is untouched.
 - `go vet ./...` passed. No live network server or Flutter integration was exercised; httptest exercises the production router with real PostgreSQL, bcrypt and JWT.
-- Database integration tests skip when TEST_DATABASE_URL is absent. No credentials/tokens were printed or committed.
+- Database integration tests are mandatory. They use `TEST_DATABASE_URL` or derive the isolated `chat_app_test` URL from local `.env`, and fail rather than skip when PostgreSQL is unavailable. No credentials/tokens were printed or committed.
 - Next: B16. Ask whether to use last_read_message_id alongside last_read_at and serialize per-conversation inserts before allocating message IDs (D08-D09), or retain the roadmap's timestamp-based design. Do not write a chat migration until this schema/client-contract question is answered.

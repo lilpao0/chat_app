@@ -29,7 +29,7 @@ func TestDiscoverAndOpenDirect(t *testing.T) {
 	users := datarepo.NewPostgresUserRepository(db)
 	create := func(name, email string) int64 {
 		t.Helper()
-		created, err := users.Create(t.Context(), repository.CreateUser{Name: name, Email: email, PasswordHash: "fixture-hash"})
+		created, err := users.Create(t.Context(), repository.CreateUser{FirstName: name, LastName: "", Email: email, PasswordHash: "fixture-hash"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -45,7 +45,7 @@ func TestDiscoverAndOpenDirect(t *testing.T) {
 		t.Fatal(err)
 	}
 	gin.SetMode(gin.TestMode)
-	r, protected := presentation.NewRouter(domainauth.NewRegister(users, dataauth.BcryptPasswordHasher{}), domainauth.NewLogin(users, dataauth.BcryptPasswordHasher{}, tokens), tokens)
+	r, protected := presentation.NewRouter(domainauth.NewRegister(users, dataauth.BcryptPasswordHasher{}), domainauth.NewLogin(users, dataauth.BcryptPasswordHasher{}, tokens), domainauth.NewRefresh(tokens), tokens)
 	conversations := datarepo.NewPostgresConversationRepository(db)
 	discovery := handler.NewDiscoveryHandler(user.NewSearch(users), conversation.NewOpenDirect(conversations))
 	protected.GET("/users", discovery.Search)
@@ -192,7 +192,7 @@ func TestDiscoverAndOpenDirect(t *testing.T) {
 		t.Fatal("concurrent open created duplicates")
 	}
 	// The seed and user-driven flow share the same pair lookup.
-	seeded, err := seed.Demo(t.Context(), db, repository.CreateUser{Name: "ignored", Email: "a@example.test", PasswordHash: "unused"}, repository.CreateUser{Name: "ignored", Email: "b@example.test", PasswordHash: "unused"})
+	seeded, err := seed.Demo(t.Context(), db, repository.CreateUser{FirstName: "ignored", LastName: "", Email: "a@example.test", PasswordHash: "unused"}, repository.CreateUser{FirstName: "ignored", LastName: "", Email: "b@example.test", PasswordHash: "unused"})
 	if err != nil || seeded.ConversationID != conversationID {
 		t.Fatal("seed duplicated user-created chat")
 	}

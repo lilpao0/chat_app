@@ -19,7 +19,7 @@ $env:DATABASE_URL = 'postgres://postgres:YOUR_POSTGRES_PASSWORD@127.0.0.1:5433/c
 migrate -path "C:/absolute/path/to/backend/migrations" -database $env:DATABASE_URL up
 ```
 
-Use `TEST_DATABASE_URL` and `chat_app_test` for migration and repository tests. Do not run destructive migration commands against `chat_app`.
+Tests always use the isolated `chat_app_test` database and never skip database coverage. Set `TEST_DATABASE_URL` explicitly when needed; for local development the test helper can derive the sibling `chat_app_test` URL from `DATABASE_URL` in `.env`. The database itself must already exist. Tests refuse any database whose actual name is not `chat_app_test`. Do not run destructive migration commands against `chat_app`.
 
 ## Application layers
 
@@ -31,7 +31,7 @@ Use `TEST_DATABASE_URL` and `chat_app_test` for migration and repository tests. 
 
 ## Repository checks
 
-From `backend/`, set `TEST_DATABASE_URL` to `chat_app_test` and run `go test -count=1 -v ./...`, then `go vet ./...`. Database tests skip without the variable and refuse other database names. They use temporary tables or unique private schemas removed at cleanup; existing data is preserved. `go test -race -count=1 ./...` also passed with PostgreSQL configured.
+From `backend/`, run `go test -count=1 -v ./...`, then `go vet ./...`. Database tests are mandatory and fail clearly if `chat_app_test` is unavailable. They use unique private schemas removed at cleanup; existing data is preserved. Use `go test -race -count=1 ./...` for the full race-enabled suite.
 
 ## Password adapter checks
 
@@ -39,11 +39,15 @@ Run `go test -v ./internal/data/auth/... ./internal/domain/usecase/auth/...` fro
 
 ## Running the REST API
 
-From backend, set DATABASE_URL to a database with migrations 000001 and 000002 applied and JWT_SECRET to a random secret of at least 32 bytes. Optional defaults: JWT_ISSUER=chat-app, JWT_AUDIENCE=chat-app-mobile, JWT_TTL=24h, HTTP_PORT=8080. The API and seed commands optionally load `.env` from the current working directory; explicit process variables take precedence. Tests use `TEST_DATABASE_URL` from the process environment. Never commit actual credentials.
+From backend, set DATABASE_URL to a database with migrations applied and JWT_SECRET to a random secret of at least 32 bytes. Optional defaults: JWT_ISSUER=chat-app, JWT_AUDIENCE=chat-app-mobile, JWT_TTL=24h, JWT_REFRESH_TTL=720h, HTTP_PORT=8080. The API and seed commands optionally load `.env` from the current working directory; explicit process variables take precedence. Tests use `TEST_DATABASE_URL` from the process environment. Never commit actual credentials.
 
-Start with `go run ./cmd/api`. Send Content-Type: application/json. POST /api/auth/register accepts name, email and password; it returns a public user without automatically logging in. POST /api/auth/login accepts email/password and returns access_token, expires_at and user. Protected routes use Authorization: Bearer <access_token>.
+Start with `go run ./cmd/api`. Send Content-Type: application/json. POST /api/auth/register accepts name, email and password; it returns a public user without automatically logging in. POST /api/auth/login accepts email/password and returns the user, access token, refresh token, and their expiration times. POST /api/auth/refresh accepts `{"refresh_token":"..."}` and returns a new access token. Protected routes use Authorization: Bearer <access_token>.
 
-Tokens expire after the configured TTL. Logout removes the client token; server revocation and refresh tokens are outside this demo. See [the auth handoff](docs/AUTH_PROGRESS.md) for verification. This session exercised the production router through httptest, not a separately launched network server.
+Interactive Swagger documentation is available at `http://localhost:8080/swagger` (replace `8080` when `HTTP_PORT` is different). Use **Authorize** with the `access_token` returned by login to call protected routes. The embedded OpenAPI 3 contract is available at `/swagger/openapi.json`; the UI loads its pinned Swagger UI assets from jsDelivr and therefore needs internet access for the page assets.
+
+Contract tests compare the OpenAPI method/path set against Gin's production route registration and verify public/protected authentication declarations plus registration validation codes. Adding or removing an API route or auth validation error without updating OpenAPI causes the test suite to fail.
+
+Tokens expire after their configured TTLs. This simple MVP does not rotate or revoke refresh tokens; logout removes tokens from the client only. See [the auth handoff](docs/AUTH_PROGRESS.md) for verification.
 
 ## Demo seed
 
