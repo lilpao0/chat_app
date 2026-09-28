@@ -137,3 +137,4 @@ flutter build apk   # build release
 
 UI tham khao Figma:
 https://www.figma.com/design/g0ru7q7CMOvhAN4KWzzhM8/WhatsApp-UI--Community-?node-id=1-8820&p=f&m=dev
+1st view
