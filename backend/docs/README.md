@@ -2,7 +2,7 @@
 
 A 1–1 chat backend for Flutter: registration/login, conversation lists, message history, text messages, realtime delivery, and unread state.
 
-**Current state (2026-09-21):** B01-B29 of the original 34-item plan and X01-X03 (user discovery/direct chat extension) are DONE. Auth and REST chat, including search/open direct 1-1 chats, are implemented and tested with PostgreSQL. Startup requires DATABASE_URL and JWT_SECRET; chat requires migrations 000001 and 000002. Code is grouped under presentation/domain/data. B30 awaits the Flutter platform choice. See [discovery handoff](DISCOVERY_PROGRESS.md), [REST chat handoff](CHAT_PROGRESS.md) and [authentication handoff](AUTH_PROGRESS.md).
+**Current state (2026-09-28):** B01-B29, X01-X08, and P01-P14 are DONE. Auth, REST chat, user discovery/direct chats, and private/public profile APIs are implemented and tested with PostgreSQL. Startup requires DATABASE_URL and JWT_SECRET; apply both current migrations. Code is grouped under presentation/domain/data. B30 awaits the Flutter platform choice. See [BACKLOG](BACKLOG.md) for the latest handoff.
 
 ## Where to start
 

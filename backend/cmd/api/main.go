@@ -71,6 +71,11 @@ func run() error {
 
 	gin.SetMode(gin.ReleaseMode)
 	users := datarepo.NewPostgresUserRepository(db)
+	profiles := handler.NewProfileHandler(
+		user.NewGetPrivateProfile(users),
+		user.NewGetPublicProfile(users),
+		user.NewUpdateProfile(users, time.Now),
+	)
 	passwords := dataauth.BcryptPasswordHasher{}
 	register := domainauth.NewRegister(users, passwords)
 	login := domainauth.NewLogin(users, passwords, tokens)
@@ -81,6 +86,9 @@ func run() error {
 	messages := datarepo.NewPostgresMessageRepository(db)
 	presentation.RegisterProtectedRoutes(protected, presentation.ProtectedHandlers{
 		SearchUsers:       discovery.Search,
+		GetPrivateProfile: profiles.GetPrivate,
+		GetPublicProfile:  profiles.GetPublic,
+		UpdateProfile:     profiles.Update,
 		OpenDirect:        discovery.OpenDirect,
 		ListConversations: handler.NewConversationsHandler(conversation.NewList(conversations)).List,
 		SendMessage:       handler.NewSendMessageHandler(message.NewSend(messages)).Send,

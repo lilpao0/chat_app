@@ -92,6 +92,7 @@ func TestPostmanCollectionCoversOpenAPI(t *testing.T) {
 		path := strings.TrimPrefix(item.Request.URL.Raw, "{{baseUrl}}")
 		path = strings.SplitN(path, "?", 2)[0]
 		path = strings.ReplaceAll(path, "{{conversationId}}", "{id}")
+		path = strings.ReplaceAll(path, "{{userBId}}", "{id}")
 		covered[item.Request.Method+" "+path] = true
 		if item.Name == "02 Register A" || item.Name == "03 Register B" {
 			var body map[string]any

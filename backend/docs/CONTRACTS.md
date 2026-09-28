@@ -1,6 +1,6 @@
 # Proposed Backend Contracts
 
-Implemented through B29 and extension X01-X03: **health, authentication, user search, opening direct 1-1 chats, conversation lists, messaging, history and read/unread state**. WebSocket remains planned. [DECISIONS](DECISIONS.md) records U10/U11. Explain these contracts in Vietnamese.
+Implemented through B29, extensions X01-X08, and profile P01-P14: **health, authentication and refresh tokens, user search, private/public profile reads and updates, opening direct 1-1 chats, conversation lists, messaging, history and read/unread state**. WebSocket remains planned. [DECISIONS](DECISIONS.md) records U10/U11/U14. Explain these contracts in Vietnamese.
 
 ## 1. General conventions
 
@@ -31,6 +31,7 @@ Implemented through B29 and extension X01-X03: **health, authentication, user se
 | 401 | `invalid_refresh_token` | Missing, invalid, expired, or wrong-type refresh token |
 | 404 | `not_found` | Conversation does not exist or the caller is not a member |
 | 409 | `email_taken` | Registration email is already in use |
+| 409 | `phone_number_taken` | A profile update supplies a phone number owned by another user |
 | 413 | `payload_too_large` | Body exceeds the limit |
 | 415 | `unsupported_media_type` | Incorrect content type for a JSON endpoint |
 | 500 | `internal_error` | Server error without exposed internal details |
@@ -72,7 +73,7 @@ Proposed demo limits:
 | Email | Trim and lowercase according to app policy; a plain address without a display name; at most 254 bytes; unique after normalization |
 | Password | Do not trim/modify; at least 8 Unicode code points and at most 72 UTF-8 bytes; never truncate silently |
 | Content | Must be nonempty after trimming for validation; at most 2,000 Unicode code points; preserve original text to retain intentional whitespace/newlines |
-| Avatar | Return an existing URL or an empty string; registration does not accept avatars/uploads yet |
+| Avatar | Profile increment uses the fixed URL `https://clipart-library.com/img/1816203.png`; clients cannot upload or edit it |
 
 The 72-byte limit matches [Go's bcrypt package](https://pkg.go.dev/golang.org/x/crypto/bcrypt). It is a byte limit, not a 72-character limit; Vietnamese characters, for example, may use multiple bytes.
 
@@ -85,6 +86,9 @@ The 72-byte limit matches [Go's bcrypt package](https://pkg.go.dev/golang.org/x/
 | `POST /api/auth/login` | No | `email`, `password` | 200 as illustrated below |
 | `POST /api/auth/refresh` | No | `refresh_token` | 200 with a new access token |
 | `GET /api/users` | Yes | `q`, optional `limit`/`after_id` | 200 paginated public user summaries excluding the caller |
+| `GET /api/users/me` | Yes | None | 200 authenticated user's private profile |
+| `PATCH /api/users/me` | Yes | Any nonempty subset of editable profile fields | 200 updated private profile |
+| `GET /api/users/{id}` | Yes | Positive user ID | 200 public profile, including when `{id}` is the caller |
 | `POST /api/conversations/direct` | Yes | `user_id` | 201 new or 200 existing direct conversation |
 | `GET /api/conversations` | Yes | None | 200 array of the caller's conversations |
 | `GET /api/conversations/:id/messages` | Yes | Pagination query | 200 according to the history contract below |
@@ -92,15 +96,76 @@ The 72-byte limit matches [Go's bcrypt package](https://pkg.go.dev/golang.org/x/
 | `POST /api/conversations/:id/read` | Yes | `last_read_message_id` | 200 with the effective updated marker |
 | Upgrade `GET /ws` | Yes | Handshake described below | 101 after successful authentication |
 
-User discovery and opening direct chats were added under U11. There is still no group chat, server-side logout/revocation, or `/me` API. Newly registered users initially receive `[]` until opening a chat.
+User discovery and opening direct chats were added under U11. There is still no group chat or server-side logout/revocation. Newly registered users initially receive `[]` until opening a chat.
 
 User discovery accepts a trimmed `q` of 2-254 Unicode code points. It searches literal name substrings without wildcard interpretation or exact email (case-insensitive). It never returns the caller or another user's email/hash. Optional `limit` defaults to 20 and is at most 50; `after_id` is a positive integer. Results use ascending user IDs with one extra row to determine `has_more`:
 
 ```json
-{"items":[{"id":2,"name":"Binh","avatar_url":""}],"has_more":false,"next_after_id":null}
+{"items":[{"id":2,"name":"Binh","avatar_url":"https://clipart-library.com/img/1816203.png"}],"has_more":false,"next_after_id":null}
 ```
 
-`POST /api/conversations/direct` accepts `{"user_id":2}`. It derives the caller from the Bearer token, rejects self-chat with 400 and missing users with 404. It returns `{"conversation":{"id":10,"user":{"id":2,"name":"Binh","avatar_url":""}}}` with 201 on first creation and 200 on reuse. A and B receive the same conversation ID regardless of which opens first. No message is sent by opening it; subsequent message/history/read calls use the existing routes and membership checks. Application creation paths serialize by the unordered pair, including demo seeding. Manual database writes that bypass those paths are not covered by this deduplication rule.
+`POST /api/conversations/direct` accepts `{"user_id":2}`. It derives the caller from the Bearer token, rejects self-chat with 400 and missing users with 404. It returns `{"conversation":{"id":10,"user":{"id":2,"name":"Binh","avatar_url":"https://clipart-library.com/img/1816203.png"}}}` with 201 on first creation and 200 on reuse. A and B receive the same conversation ID regardless of which opens first. No message is sent by opening it; subsequent message/history/read calls use the existing routes and membership checks. Application creation paths serialize by the unordered pair, including demo seeding. Manual database writes that bypass those paths are not covered by this deduplication rule.
+
+### Profile contract
+
+All three profile routes require `Authorization: Bearer <access_token>`. Handlers derive the caller from the verified token. Clients cannot supply an actor ID to private-profile operations.
+
+`GET /api/users/me` returns the authenticated user's private profile:
+
+```json
+{
+  "user": {
+    "id": 1,
+    "first_name": "Pao",
+    "last_name": "Nguyen",
+    "name": "Pao Nguyen",
+    "date_of_birth": "2002-05-21",
+    "phone_number": "+84901234567",
+    "avatar_url": "https://clipart-library.com/img/1816203.png"
+  }
+}
+```
+
+`date_of_birth` and `phone_number` may be null. The API returns both split names and the derived combined name so an edit form never has to infer the name boundary.
+
+`GET /api/users/{id}` always returns the public representation, even when `{id}` is the authenticated user's ID:
+
+```json
+{
+  "user": {
+    "id": 2,
+    "name": "An Nguyen",
+    "avatar_url": "https://clipart-library.com/img/1816203.png"
+  }
+}
+```
+
+It must not expose email, phone number, date of birth, password hash, or split name fields. A non-positive/malformed ID returns 400; an absent or inactive user returns 404.
+
+`PATCH /api/users/me` accepts a nonempty subset of these fields only:
+
+```json
+{
+  "first_name": "Pao",
+  "last_name": "Nguyen",
+  "date_of_birth": null,
+  "phone_number": "+84901234567"
+}
+```
+
+- Omitted fields remain unchanged.
+- JSON null clears `date_of_birth` or `phone_number`.
+- An empty string clears `last_name`; supplied `first_name` cannot be null or empty after trimming.
+- `name` is derived and cannot be submitted directly.
+- `email` and `avatar_url` are not editable; as unknown fields they make the request invalid.
+- `{}` is invalid because it requests no change.
+- A date of birth uses `YYYY-MM-DD`, must be a real calendar date, and cannot be later than the current calendar date. No minimum age rule applies.
+- A phone number is optional but, when supplied, must already be `+` followed by 7-15 digits and must be unique. The server does not rewrite local numbers and does not perform OTP verification.
+- Name UTF-8, NUL, trimming, and 100-code-point limits follow the registration name policy.
+
+A successful PATCH returns the same private representation as `GET /api/users/me`. A phone conflict returns 409 `phone_number_taken`. Invalid fields, formats, dates, or an empty patch return 400 `invalid_input`. Existing JSON media-type and 16 KiB body rules apply.
+
+The fixed avatar URL is returned consistently by profile and existing user-summary response surfaces. Uploading or editing avatars, changing email, OTP verification, and deleting/deactivating profiles are explicitly deferred.
 
 Successful login:
 

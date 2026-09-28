@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Chat App REST — Complete REST Flow",
-    "description": "Run requests 01–17 manually in order. Before each dependent request, copy IDs and tokens from the previous response into the collection variables; this collection intentionally contains no scripts that generate or overwrite variable data. Set emailA, emailB, and password before registration. Password must contain 8+ Unicode code points and at most 72 UTF-8 bytes. Requires the API on baseUrl with current migrations applied. The requests cover registration, login, access/refresh tokens, user discovery, direct chat, messaging, unread/read state, conversation reuse, and the three HTTP 401 error codes. WebSocket is intentionally outside this REST collection.",
+    "description": "Run requests 01–20 manually in order. Before each dependent request, copy IDs and tokens from the previous response into the collection variables; this collection intentionally contains no scripts that generate or overwrite variable data. Set emailA, emailB, and password before registration. Password must contain 8+ Unicode code points and at most 72 UTF-8 bytes. Requires the API on baseUrl with current migrations applied. The requests cover registration, login, access/refresh tokens, user discovery, direct chat, messaging, unread/read state, conversation reuse, private/public profiles, profile updates, and the three HTTP 401 error codes. WebSocket is intentionally outside this REST collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -808,6 +808,79 @@
             }
           }
         }
+      },
+      "response": []
+    },
+    {
+      "name": "18 Get my private profile",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenA}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/users/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "users", "me"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "19 Get B public profile",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenA}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/users/{{userBId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "users", "{{userBId}}"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "20 Update my private profile",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{tokenA}}", "type": "string" }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/users/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "users", "me"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"An\",\n  \"last_name\": \"Nguyen\",\n  \"date_of_birth\": \"2000-01-01\",\n  \"phone_number\": null\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Send any nonempty subset. Omitted fields stay unchanged; date_of_birth and phone_number accept null to clear them."
       },
       "response": []
     }

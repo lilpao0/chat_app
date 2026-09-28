@@ -59,6 +59,80 @@
 - **Scope:** update contract, decisions, run instructions and milestone scope. Existing B01-B34 status remains separately tracked.
 - **Verification:** `go test -race -count=1 ./...` with TEST_DATABASE_URL targeting chat_app_test, `go vet ./...`, and `git diff --check` passed. Integration uses isolated schemas and does not alter existing development data. No Flutter search UI or WebSocket delivery is claimed.
 
+## User profile extension
+
+The user approved the private/public profile API design on 2026-09-28. The implemented contract is recorded in [CONTRACTS.md](CONTRACTS.md).
+
+### P01 - DONE - Record the approved profile contract
+
+- **Outcome:** update decisions and API contracts with the confirmed routes, privacy boundary, PATCH semantics, validation rules, fixed avatar, and explicitly deferred features.
+- **Dependency:** none. Keep OpenAPI unchanged until routes are implemented because route/spec parity is enforced by tests.
+
+### P02 - DONE - Establish the fixed default avatar
+
+- **Outcome:** add a forward migration that sets the confirmed `avatar_url` default and backfills empty existing values; verify existing and newly registered users.
+- **Dependency:** P01.
+
+### P03 - DONE - Add private and public profile domain models
+
+- **Outcome:** add separate safe representations and a stable phone-number-conflict error without Gin or SQL dependencies.
+- **Dependency:** P01.
+
+### P04 - DONE - Define profile read repository operations
+
+- **Outcome:** define context-aware private/public lookup operations with active-user and not-found behavior.
+- **Dependency:** P03.
+
+### P05 - DONE - Implement PostgreSQL profile reads
+
+- **Outcome:** read nullable private fields and minimal public fields with parameterized SQL and real PostgreSQL integration coverage.
+- **Dependency:** P02, P04.
+
+### P06 - DONE - Implement profile read use cases
+
+- **Outcome:** add and unit-test separate private/public read actions through repository interfaces.
+- **Dependency:** P04.
+
+### P07 - DONE - Expose private and public GET profile APIs
+
+- **Outcome:** add authenticated `GET /api/users/me` and `GET /api/users/:id`, production wiring, exact DTO privacy, OpenAPI, and HTTP/contract tests.
+- **Dependency:** P05, P06.
+
+### P08 - DONE - Preserve PATCH field presence
+
+- **Outcome:** model omitted, explicit-null, and concrete-value states without allowing unknown or non-editable fields.
+- **Dependency:** P03.
+
+### P09 - DONE - Validate profile updates
+
+- **Outcome:** validate normalized split names, nullable non-future ISO dates, nullable unique E.164 phone intent, and nonempty patches with unit tests.
+- **Dependency:** P08.
+
+### P10 - DONE - Implement PostgreSQL profile updates
+
+- **Outcome:** update only supplied editable fields, support clearing nullable fields, map phone uniqueness safely, and return the private profile with integration tests.
+- **Dependency:** P05, P08.
+
+### P11 - DONE - Implement the profile update use case
+
+- **Outcome:** normalize, validate, persist, and return an updated private profile with focused fake-repository tests.
+- **Dependency:** P09, P10.
+
+### P12 - DONE - Expose PATCH `/api/users/me`
+
+- **Outcome:** add authenticated strict JSON handling, safe error mapping, route/wiring, OpenAPI, and HTTP/contract tests.
+- **Dependency:** P07, P11.
+
+### P13 - DONE - Run profile privacy and avatar regressions
+
+- **Outcome:** verify avatar consistency across auth/search/chat/profile and prove public responses expose no private fields.
+- **Dependency:** P12.
+
+### P14 - DONE - Complete profile documentation and verification
+
+- **Outcome:** synchronize contracts, decisions, Swagger, Postman/run guidance, full PostgreSQL-backed tests, vet, formatting, diff checks, and the handoff record.
+- **Dependency:** P13.
+
 See [MVP_PLAN](MVP_PLAN.md) for the eight milestones grouping B01–B34, their exit criteria, and the final acceptance scenario. Update implementation status here only.
 
 This is the **single source of work status**. Read each item's status and the latest handoff entry for current progress; the backlog is not an instruction to implement everything automatically. For an assigned implementation task, complete **one small item per turn, report what was done and explain it in Vietnamese, then stop** according to [AGENTS.md](AGENTS.md) and [WORKFLOW.md](WORKFLOW.md). Split an item into sub-items first if it is still too large.
@@ -338,6 +412,87 @@ Each item specifies dependencies, verification, and concepts to explain. **Every
 
 ## Handoff log
 
+### 2026-09-28 - P09-P14: Complete profile updates and final verification
+
+- **Status:** DONE. The user explicitly requested completing the remaining profile backlog through P14 and removing the temporary profile plan.
+- **P09/P11:** added the update use case with field-presence-aware validation and normalization. Patches must be nonempty; names are trimmed and follow the existing UTF-8/NUL/100-code-point policy; first name cannot be empty; date of birth is strict `YYYY-MM-DD` and non-future; phone numbers are either null or an unchanged E.164 value matching `+` plus 7-15 digits.
+- **P10:** added a focused profile update repository interface and PostgreSQL implementation. One parameterized `UPDATE ... RETURNING` changes only supplied fields, clears nullable fields on explicit null, ignores inactive users, preserves email/avatar, and maps the phone unique constraint to `ErrPhoneNumberTaken`.
+- **P12:** exposed authenticated `PATCH /api/users/me` with strict JSON, field-presence mapping, private-profile output, safe 400/401/404/409/413/415/500 behavior, production wiring, OpenAPI, and Postman coverage. Email, avatar, derived name, and unknown fields cannot be submitted.
+- **P13:** regression coverage verifies that public profiles expose only ID/name/avatar, private fields stay private, immutable fields survive updates, and the fixed avatar default remains consistent across repository-backed user surfaces. The complete existing auth, discovery, conversation, message, profile, and migration suites passed together.
+- **P14:** synchronized contracts, decisions, README state, Swagger, Postman, task statuses, and this handoff. Removed the completed temporary `PROFILE_PLAN.md`; `CONTRACTS.md` and this backlog remain the durable sources.
+- **Verification:** `gofmt` completed; JSON parsing passed for OpenAPI and Postman; `go test -race -count=1 ./...`, `go vet ./...`, and `git diff --check` passed. PostgreSQL integration tests ran against the isolated `chat_app_test` database and did not skip.
+- **Deferred:** avatar upload/edit, email changes, phone OTP, and profile/account deletion remain outside this increment. B30 still awaits the Flutter platform decision before WebSocket work.
+
+### 2026-09-28 - P08: Preserve PATCH field presence
+
+- **Status:** DONE. The user assigned the complete P08 implementation to the assistant.
+- **Changed:** added generic domain `UpdateField` and `UpdateProfileInput` types that preserve omitted versus explicit-null update intent without JSON dependencies. Added an internal presentation `optionalJSONField` decoder and the four-field update request DTO.
+- **Behavior:** omitted fields remain unset; explicit JSON null is distinct from an empty/concrete string; concrete strings are retained; wrong JSON types fail decoding. Name nullability is preserved for P09 to reject, while date/phone nullability remains available for clearing.
+- **Verification:** focused handler tests cover all three presence states and wrong types. Targeted presentation/domain tests and full `go test -count=1 ./...` passed; `go vet ./...` and `git diff --check` passed.
+- **Boundary:** no PATCH route, request-to-domain mapping, business validation, date parsing, E.164 validation, SQL update, or phone conflict mapping was added.
+- **Next:** P09 - validate and normalize profile update intent, including non-null names, nullable non-future dates, E.164 phone values, and empty-patch rejection.
+
+### 2026-09-28 - P07: Authenticated private/public profile GET APIs
+
+- **Status:** DONE. The user created the initial handler/router/wiring; the assistant completed the requested corrections, tests, OpenAPI, Postman coverage, and verification.
+- **Changed:** added authenticated `GET /api/users/me` and `GET /api/users/:id`, private/public HTTP DTOs, date-only DOB formatting, safe error mapping, production dependency wiring, and exact route registration. Public self lookup always uses the public representation.
+- **Fixes:** aligned handler interface names, made the public DTO internal, corrected the Go date layout to `2006-01-02`, and removed duplicate `/users` registration.
+- **Contracts/tests:** OpenAPI documents both Bearer-protected GET operations and profile schemas; Postman covers both operations. Handler tests cover JWT identity use, date/phone JSON, public privacy, self lookup, invalid IDs, missing/internal errors, and missing authentication. Router/OpenAPI/Postman parity tests pass.
+- **Verification:** targeted handler, Swagger, router, and PostgreSQL HTTP tests passed; full `go test -count=1 ./...`, `go vet ./...`, and `git diff --check` passed.
+- **Boundary:** `PATCH /api/users/me`, profile update validation/persistence, avatar editing, email editing, OTP, and deletion remain unimplemented.
+- **Next:** P08 - model omitted, explicit-null, and concrete-value PATCH field states without exposing non-editable fields.
+
+### 2026-09-28 - P06: Private/public profile read use cases
+
+- **Status:** DONE. The user implemented both read use cases and their fake-repository tests; the assistant corrected the requested method-name and test-block syntax issues.
+- **Changed:** added separate `GetPrivateProfile` and `GetPublicProfile` use cases. Each rejects non-positive IDs before repository access, forwards the original context and ID, depends only on its narrow reader interface, and preserves repository results/errors.
+- **Tests:** external-package unit tests cover successful private/public results, context and ID forwarding, zero/negative validation without repository calls, and repository error propagation.
+- **Verification:** targeted `go test -count=1 -v ./internal/domain/usecase/user/...` and the full PostgreSQL-backed `go test -count=1 ./...` suite passed; `go vet ./...` and `git diff --check` passed.
+- **Boundary:** no HTTP handler, DTO, route, production wiring, OpenAPI path, or profile endpoint exists yet.
+- **Next:** P07 - expose authenticated private/public GET profile APIs with exact privacy DTOs, wiring, OpenAPI, and HTTP/contract tests.
+
+### 2026-09-28 - P05: PostgreSQL private/public profile reads
+
+- **Status:** DONE. The user implemented both PostgreSQL read methods; the assistant completed the requested external-package integration tests and fixed the two production issues those tests exposed.
+- **Changed:** `PostgresUserRepository` now implements `PrivateProfileReader` and `PublicProfileReader`. Private reads convert nullable date/phone columns to domain pointers; public reads select only ID, combined name, and avatar. Both parameterize the ID, filter `deleted_at IS NULL`, map missing rows to `ErrUserNotFound`, preserve wrapped causes, and propagate request context.
+- **Fixes from tests:** the public-name `concat_ws` delimiter now contains one space, producing `Binh Tran` instead of `BinhTran`; the public lookup error wrapper now includes the conventional separator before `%w`.
+- **Verification:** real PostgreSQL tests in `internal/data/repository/test` cover complete and nullable private profiles, public output, missing users, soft-deleted users, context cancellation, and the fixed avatar. Targeted tests and the full `go test -count=1 ./...` suite passed; `go vet ./...` and `git diff --check` passed.
+- **Boundary:** no profile use case, handler, route, response DTO, or OpenAPI path was added.
+- **Next:** P06 - implement and unit-test separate private/public profile read use cases.
+
+### 2026-09-28 - P04: Profile read repository interfaces
+
+- **Status:** DONE. The user implemented and corrected the P04 interface file after review.
+- **Changed:** added `internal/domain/repository/profile_repository.go` with separate `PrivateProfileReader` and `PublicProfileReader` interfaces. Each accepts request context and a user ID and returns only its matching domain profile type.
+- **Design boundary:** the existing auth-focused `UserRepository` was not expanded. P04 contains no SQL, Gin, PostgreSQL driver, validation, handler, route, or OpenAPI behavior.
+- **Verified:** the file name and formatting are correct; domain tests and the full PostgreSQL-backed `go test -count=1 ./...` suite passed; `go vet ./...` and `git diff --check` passed.
+- **Next:** P05 - implement both read interfaces on `PostgresUserRepository` with active-user filtering and integration coverage.
+
+### 2026-09-28 - P03: Private and public profile domain models
+
+- **Status:** DONE. The user implemented the P03 domain types after the assistant reverted its earlier implementation.
+- **Changed:** `internal/domain/entity/user.go` now defines separate `PrivateProfile` and `PublicProfile` values plus stable `ErrPhoneNumberTaken`. Nullable date of birth and phone number use pointers. The public type contains only ID, combined name, and avatar URL.
+- **Boundary:** no profile repository operation, use case, handler, route, DTO, OpenAPI path, or JSON serialization rule was added. The domain types import neither Gin nor SQL.
+- **Verified:** `gofmt -d internal/domain/entity/user.go` produced no diff; domain tests and the full PostgreSQL-backed `go test -count=1 ./...` suite passed; `go vet ./...` and `git diff --check` passed.
+- **Note:** the error text currently starts with an uppercase letter. This does not affect `errors.Is` identity or the future HTTP code mapping, but lowercase error text is the usual Go convention.
+- **Next:** P04 - define context-aware repository interfaces for private and public profile reads.
+
+### 2026-09-28 - P02: Fixed default user avatar
+
+- **Status:** DONE. The user created the forward migration and updated existing repository fixtures; the missing migration-transition coverage and completion record were then added on request.
+- **Changed:** migration 000002 sets the fixed avatar default and backfills only empty values; its down migration restores the original empty-string default without deleting backfilled data. The isolated test database helper applies migrations 000001 and 000002 in order, and user repository expectations use the new default.
+- **Verified:** a real PostgreSQL migration test exercises down, old empty/custom fixtures, up backfill, preservation of the custom value, the new default, and restoration of the old default after down. Full tests, vet, formatting, and diff checks passed as recorded in the completion report.
+- **Boundary:** no upload/edit API, profile route, repository profile operation, or OpenAPI path was added. The P03 implementation previously added by the assistant was reverted so the user can implement it while following guidance.
+- **Next:** P03 - add separate private/public profile domain models and a stable phone-number-conflict error.
+
+### 2026-09-28 - P01: Approved user profile contract
+
+- **Status:** DONE. The user assigned documentation-only P01 after confirming the profile design.
+- **Changed:** recorded U14 in `DECISIONS.md`; documented the three authenticated profile routes, private/public DTO boundary, PATCH presence/null behavior, validation, fixed avatar, safe errors, and deferred deletion/upload/email/OTP scope in `CONTRACTS.md`.
+- **Implementation boundary:** no Go, router, OpenAPI, migration, database, Postman collection, or runtime behavior changed. The profile routes remain unimplemented, so OpenAPI remains aligned with the production route table.
+- **Verified:** reviewed the recorded decisions against the approved profile contract; checked links/status/terminology and ran `git diff --check`. Application and database tests were not run because P01 changes documentation only.
+- **Next:** P02 - establish the fixed default avatar with a forward migration and database-backed verification.
+
 ### 2026-09-25 — Registration input normalization cleanup
 
 - **Status:** DONE. The user requested the small cleanup discussed while reviewing presentation versus domain validation.
@@ -387,8 +542,8 @@ Each item specifies dependencies, verification, and concepts to explain. **Every
 ### 2026-09-18 — B01: Initialize the Go module
 
 - **Status:** DONE. The user explicitly requested B01 and an additional rule requiring agents to report completed work after every small step.
-- **Changed:** created `backend/go.mod` with module `github.com/lilpao0/chat_app/backend` and `go 1.27.1`; preserved the existing empty `cmd/api/main.go`; added no application dependencies. Updated rules, workflow, project guidance, and decision records.
-- **Selection basis:** installed toolchain reported `go version go1.27.1 windows/amd64`; the existing git origin is `https://github.com/lilpao0/chat_app.git`, and the module lives in its `backend` subdirectory. See implementation choice I01 in DECISIONS.
+- **Changed:** created `backend/go.mod` with module `github.com/lilpao0/chat_app/backend`; the current module target is Go 1.26.0. Preserved the existing empty `cmd/api/main.go` at that stage and added no application dependencies. Updated rules, workflow, project guidance, and decision records.
+- **Selection basis:** the module path follows the existing origin `https://github.com/lilpao0/chat_app.git` and the backend subdirectory. The current installed toolchain reports `go version go1.27.1 windows/amd64` and builds the Go 1.26.0 module target. See implementation choice I01 in DECISIONS.
 - **Verified:** `go mod init github.com/lilpao0/chat_app/backend` succeeded; `go list -m` returned the expected module path; `go env GOMOD GOWORK` identified `backend/go.mod` and no active workspace; `go build ./...` passed from `backend/`.
 - **Verification environment:** `GOTOOLCHAIN=local`; build cache directed to the OS temporary directory with `GOCACHE`. The generated `backend/api.exe` was removed after verification so no build artifact remains in the project.
 - **Completion report / explanation in Vietnamese:** module creation, selected path/version, successful build, updated agent reporting rules, the purpose of `go.mod`, and the distinction between a buildable empty entrypoint and a running HTTP server.

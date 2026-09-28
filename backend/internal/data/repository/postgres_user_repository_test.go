@@ -40,7 +40,8 @@ func TestPostgresUserRepository(t *testing.T) {
 		t.Fatalf("create user: %v", err)
 	}
 	expectedName := "An Nguyen"
-	if created.ID <= 0 || created.Name != expectedName || created.Email != input.Email || created.PasswordHash != input.PasswordHash || created.AvatarURL != "" || created.CreatedAt.IsZero() {
+	const defaultAvatarURL = "https://clipart-library.com/img/1816203.png"
+	if created.ID <= 0 || created.Name != expectedName || created.Email != input.Email || created.PasswordHash != input.PasswordHash || created.AvatarURL != defaultAvatarURL || created.CreatedAt.IsZero() {
 		t.Fatal("created user fields or database defaults do not match")
 	}
 	found, err := repo.FindByEmail(ctx, input.Email)

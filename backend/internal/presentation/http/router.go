@@ -31,6 +31,9 @@ type ProtectedHandlers struct {
 	SendMessage       gin.HandlerFunc
 	MessageHistory    gin.HandlerFunc
 	MarkRead          gin.HandlerFunc
+	GetPrivateProfile gin.HandlerFunc
+	GetPublicProfile  gin.HandlerFunc
+	UpdateProfile     gin.HandlerFunc
 }
 
 func RegisterProtectedRoutes(group *gin.RouterGroup, handlers ProtectedHandlers) {
@@ -40,4 +43,7 @@ func RegisterProtectedRoutes(group *gin.RouterGroup, handlers ProtectedHandlers)
 	group.POST("/conversations/:id/messages", handlers.SendMessage)
 	group.GET("/conversations/:id/messages", handlers.MessageHistory)
 	group.POST("/conversations/:id/read", handlers.MarkRead)
+	group.GET("/users/me", handlers.GetPrivateProfile)
+	group.PATCH("/users/me", handlers.UpdateProfile)
+	group.GET("/users/:id", handlers.GetPublicProfile)
 }

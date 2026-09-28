@@ -65,7 +65,10 @@ func Database(t *testing.T) *sql.DB {
 	}
 	t.Cleanup(func() { db.Close() })
 	_, source, _, _ := runtime.Caller(0)
-	for _, file := range []string{"000001_initial_schema.up.sql"} {
+	for _, file := range []string{
+		"000001_initial_schema.up.sql",
+		"000002_default_user_avatar.up.sql",
+	} {
 		body, err := os.ReadFile(filepath.Join(filepath.Dir(source), "..", "..", "migrations", file))
 		if err != nil {
 			t.Fatal(err)

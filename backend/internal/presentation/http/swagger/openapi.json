@@ -105,6 +105,55 @@
         }
       }
     },
+    "/api/users/me": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get my private profile",
+        "operationId": "getPrivateProfile",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Authenticated user's private profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PrivateProfileResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "404": { "description": "Active user not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update my private profile",
+        "description": "Updates a nonempty subset of editable fields. Omitted fields are unchanged; date_of_birth and phone_number may be cleared with null. Email and avatar are not editable.",
+        "operationId": "updatePrivateProfile",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateProfileRequest" } } } },
+        "responses": {
+          "200": { "description": "Updated private profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PrivateProfileResponse" } } } },
+          "400": { "$ref": "#/components/responses/InvalidInput" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "404": { "description": "Active user not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "description": "Phone number is already in use", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "error": { "code": "phone_number_taken", "message": "Phone number is already in use." } } } } },
+          "413": { "$ref": "#/components/responses/PayloadTooLarge" },
+          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get a public user profile",
+        "description": "Always returns the public representation, including when id belongs to the authenticated caller.",
+        "operationId": "getPublicProfile",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/PositiveID" } }],
+        "responses": {
+          "200": { "description": "Public user profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublicProfileResponse" } } } },
+          "400": { "$ref": "#/components/responses/InvalidInput" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "404": { "description": "Active user not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
     "/api/conversations/direct": {
       "post": {
         "tags": ["Conversations"],
@@ -220,8 +269,13 @@
       "ErrorResponse": { "type": "object", "required": ["error"], "properties": { "error": { "$ref": "#/components/schemas/Error" } } },
       "RegisterValidationError": { "type": "object", "required": ["code", "message"], "properties": { "code": { "type": "string", "enum": ["invalid_input", "first_name_is_required", "first_name_must_be_at_most_100_characters", "first_name_contains_invalid_characters", "last_name_must_be_at_most_100_characters", "last_name_contains_invalid_characters", "email_is_required", "email_is_invalid", "password_is_required", "password_must_be_at_least_8_characters", "password_must_be_at_most_72_characters", "password_contains_invalid_characters"] }, "message": { "type": "string" } } },
       "RegisterErrorResponse": { "type": "object", "required": ["error"], "properties": { "error": { "$ref": "#/components/schemas/RegisterValidationError" } } },
-      "User": { "type": "object", "required": ["id", "name", "email", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "name": { "type": "string", "example": "An Nguyen" }, "email": { "type": "string", "format": "email", "example": "an@example.com" }, "avatar_url": { "type": "string", "example": "" } } },
-      "Participant": { "type": "object", "required": ["id", "name", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "name": { "type": "string", "example": "Binh Tran" }, "avatar_url": { "type": "string", "example": "" } } },
+      "User": { "type": "object", "required": ["id", "name", "email", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "name": { "type": "string", "example": "An Nguyen" }, "email": { "type": "string", "format": "email", "example": "an@example.com" }, "avatar_url": { "type": "string", "example": "https://clipart-library.com/img/1816203.png" } } },
+      "Participant": { "type": "object", "required": ["id", "name", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "name": { "type": "string", "example": "Binh Tran" }, "avatar_url": { "type": "string", "example": "https://clipart-library.com/img/1816203.png" } } },
+      "PrivateProfile": { "type": "object", "required": ["id", "first_name", "last_name", "name", "date_of_birth", "phone_number", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "first_name": { "type": "string", "example": "Pao" }, "last_name": { "type": "string", "example": "Nguyen" }, "name": { "type": "string", "example": "Pao Nguyen" }, "date_of_birth": { "type": "string", "format": "date", "nullable": true, "example": "2002-05-21" }, "phone_number": { "type": "string", "pattern": "^\\+[0-9]{7,15}$", "nullable": true, "example": "+84901234567" }, "avatar_url": { "type": "string", "example": "https://clipart-library.com/img/1816203.png" } } },
+      "PublicProfile": { "type": "object", "required": ["id", "name", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "name": { "type": "string", "example": "Pao Nguyen" }, "avatar_url": { "type": "string", "example": "https://clipart-library.com/img/1816203.png" } } },
+      "PrivateProfileResponse": { "type": "object", "required": ["user"], "properties": { "user": { "$ref": "#/components/schemas/PrivateProfile" } } },
+      "PublicProfileResponse": { "type": "object", "required": ["user"], "properties": { "user": { "$ref": "#/components/schemas/PublicProfile" } } },
+      "UpdateProfileRequest": { "type": "object", "additionalProperties": false, "minProperties": 1, "properties": { "first_name": { "type": "string", "minLength": 1, "maxLength": 100, "description": "Trimmed before storage; must not be null" }, "last_name": { "type": "string", "maxLength": 100, "description": "Trimmed before storage; may be empty but must not be null" }, "date_of_birth": { "type": "string", "format": "date", "nullable": true, "description": "Must not be later than the current date; null clears the field" }, "phone_number": { "type": "string", "pattern": "^\\+[0-9]{7,15}$", "nullable": true, "description": "Unique E.164 value; null clears the field" } } },
       "RegisterRequest": { "type": "object", "additionalProperties": false, "required": ["first_name", "email", "password"], "properties": { "first_name": { "type": "string", "minLength": 1, "maxLength": 100, "description": "Trimmed before storage; must contain 1-100 Unicode code points, valid UTF-8, and no NUL", "example": "An" }, "last_name": { "type": "string", "maxLength": 100, "description": "Optional and trimmed before storage; when present must contain at most 100 Unicode code points, valid UTF-8, and no NUL", "example": "Nguyen" }, "email": { "type": "string", "format": "email", "description": "Trimmed and lowercased; must be a plain address without a display name and at most 254 UTF-8 bytes", "example": "an@example.com" }, "password": { "type": "string", "format": "password", "minLength": 8, "description": "Not trimmed or modified; must contain at least 8 Unicode code points, at most 72 UTF-8 bytes, valid UTF-8, and no NUL", "writeOnly": true, "example": "password123" } } },
       "LoginRequest": { "type": "object", "additionalProperties": false, "required": ["email", "password"], "properties": { "email": { "type": "string", "format": "email", "description": "Trimmed and lowercased before lookup", "example": "an@example.com" }, "password": { "type": "string", "format": "password", "minLength": 8, "description": "Not trimmed; same 8 Unicode code point and 72 UTF-8 byte limits as registration", "writeOnly": true, "example": "password123" } } },
       "UserResponse": { "type": "object", "required": ["user"], "properties": { "user": { "$ref": "#/components/schemas/User" } } },

@@ -21,6 +21,8 @@ func TestOpenAPIRoutesMatchGinRoutes(t *testing.T) {
 	presentation.RegisterProtectedRoutes(protected, presentation.ProtectedHandlers{
 		SearchUsers: noop, OpenDirect: noop, ListConversations: noop,
 		SendMessage: noop, MessageHistory: noop, MarkRead: noop,
+		GetPrivateProfile: noop, GetPublicProfile: noop,
+		UpdateProfile: noop,
 	})
 
 	actual := make([]string, 0)

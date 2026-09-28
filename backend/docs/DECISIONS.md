@@ -1,6 +1,6 @@
 # Scope, Decisions, and Assumptions
 
-## Current decisions - 2026-09-21
+## Current decisions - 2026-09-28
 
 - **U09 (confirmed):** the user asked to continue through eligible items until a question needs their answer. This supersedes U02's one-item-per-turn stopping pace. Keep separate Vietnamese explanations and verification for each item. No commit, push, or deployment is implied.
 - **I05 (implementation choice, updated by U12):** implement local-demo auth with HS256 access JWTs (default 24h) and simple refresh JWTs (default 30 days), explicit public DTOs, and no server-side revocation/rotation. Use github.com/golang-jwt/jwt/v5 v5.3.1. Require valid signature, expiration, canonical positive int64 subject, issuer, audience, time claims, and the correct access/refresh token type. Secrets are environment-only and at least 32 bytes; both TTLs must be at least 1s.
@@ -14,6 +14,7 @@
 - **U13 (confirmed, 2026-09-24):** distinguish authentication failures by client action while preserving account-enumeration protection: login uses `invalid_credentials` for both unknown email and wrong password; protected API authentication uses `unauthenticated`; refresh-token rejection uses `invalid_refresh_token`. All three remain HTTP 401.
 - **I08 (implementation):** GET /api/users performs literal case-insensitive substring matching on name or exact case-insensitive email matching. Results exclude the actor and expose id/name/avatar_url only. Default limit 20, maximum 50; ascending ID pagination via after_id. Search requires at least two Unicode code points and at most 254; empty q is invalid. This keeps the response useful without returning other users' email/password hashes.
 - **I09 (implementation):** POST /api/conversations/direct accepts only user_id, rejects self/missing users and returns the exact 1-1 conversation. 201 means created; 200 means reused. Both request orders use a transaction-scoped advisory lock keyed by the sorted user pair, so simultaneous requests and seed use the same path. No database uniqueness constraint exists for unordered user pairs: direct SQL writers bypassing this application path could still create duplicates. No conversation is created on simple search or user registration.
+- **U14 (confirmed, 2026-09-28):** add authenticated private/public user profiles. `GET /api/users/me` returns the caller's `id`, split and combined name, nullable date of birth, nullable phone number, and fixed avatar. `PATCH /api/users/me` edits split names, date of birth, and phone number only; omitted fields remain unchanged, nullable fields may be cleared, and email/avatar cannot be edited. `GET /api/users/{id}` always returns only `id`, combined name, and avatar, including self lookup. Phone numbers are optional, unique when present, and supplied in E.164 form without server normalization or OTP. Dates of birth are optional and cannot be in the future. All three routes require an access token. The fixed avatar is `https://clipart-library.com/img/1816203.png`. Account/profile deletion is deferred.
 
 Created: 2026-09-18. This document separates actual requirements from design choices so agents do not infer additional features or permission to execute work.
 
@@ -29,6 +30,7 @@ Created: 2026-09-18. This document separates actual requirements from design cho
 | U06 | Write the backend documentation in English; keep user-facing explanations and code walkthroughs in Vietnamese | Follow-up request about language |
 | U07 | Initialize the Go module as B01 using the existing project | Direct implementation request |
 | U08 | After every small step, explicitly report what was completed in addition to explaining the code | Direct follow-up request; report in Vietnamese under U06 |
+| U14 | Add authenticated private/public profile APIs with limited editable fields, private DOB/phone, a fixed avatar, E.164 phone storage without OTP, and defer deletion | User answers and confirmation on 2026-09-28; contract recorded in CONTRACTS |
 
 U01 does not prohibit future implementation turns when the user explicitly assigns an item. U02 remains in effect until the user changes the pace.
 
@@ -41,7 +43,7 @@ Source: [Six-week roadmap](../../ke-hoach-6-tuan-flutter-golang-chat-app-1.md), 
 - Authentication, conversation lists, history, text messages, realtime delivery, and read/unread state.
 - The users, conversations, conversation_members, and messages tables.
 - Outside the MVP: group chat, files/images/voice, message editing/deletion, reactions, typing indicators, presence, push notifications, and calls. Do not add Redis, Kafka, microservices, or Kubernetes.
-- Avatars are existing URLs/values or empty; there is no image upload feature.
+- There is no image upload feature. U14 supersedes the earlier empty-avatar assumption for the profile increment by confirming one fixed default avatar URL.
 
 The roadmap contains inconsistent endpoint prefixes and a simplified read-state schema. The choices below address these gaps; they are not quotations of requirements separately confirmed by the user.
 
@@ -71,7 +73,7 @@ Resolved during B05: **I02 — migration tool and local databases (2026-09-18).*
 
 ## 4. Deliberately open questions
 
-Resolved during B01: **I01 — module/toolchain selection (2026-09-18).** Selected `github.com/lilpao0/chat_app/backend` from the existing origin `https://github.com/lilpao0/chat_app.git` and the backend subdirectory. `go mod init` recorded `go 1.27.1`, matching the installed Windows/amd64 toolchain. This is an implementation choice made within the authorized B01 scope, not a new product requirement. Module recognition and the existing entrypoint build both passed. No third-party dependencies were added.
+Resolved during B01 and retained on 2026-09-28: **I01 — module/toolchain selection.** The module is `github.com/lilpao0/chat_app/backend`, derived from the existing origin `https://github.com/lilpao0/chat_app.git` and the backend subdirectory. `go.mod` targets Go 1.26.0; the installed Go 1.27.1 Windows/amd64 toolchain is compatible with that target. This is an implementation choice, not a product requirement.
 
 | Open point | When to resolve | Approach |
 |---|---|---|
