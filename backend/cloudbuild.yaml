@@ -1,0 +1,58 @@
+substitutions:
+  _SHA: local-build
+
+steps:
+  # Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -f
+      - Dockerfile
+      - -t
+      - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:${_SHA}
+      - -t
+      - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:latest
+      - .
+
+  # Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - -a
+      - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - chat-api
+      - --image
+      - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:${_SHA}
+      - --region
+      - asia-southeast1
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --port
+      - '8080'
+      - --min-instances
+      - '1'
+      - --max-instances
+      - '10'
+      - --concurrency
+      - '1000'
+      - --timeout
+      - '3600s'
+      - --set-secrets
+      - JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest
+
+images:
+  - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:${_SHA}
+  - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '1800s'

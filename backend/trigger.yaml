@@ -1,0 +1,7 @@
+filename: cloudbuild.yaml
+name: chat-api-deploy
+github:
+  owner: lilpao0
+  repo: chat_app
+  push:
+    branch: ^main$
