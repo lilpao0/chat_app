@@ -38,7 +38,7 @@ PostgreSQL tests deliberately fail the conversation update after INSERT and veri
 - **B25:** domain History checks IDs, default limit 20/max 100, exclusive before/after modes and membership before fetching. Fake tests cover invalid parameters, default limit, non-member and repository failures.
 - **B26:** GET /api/conversations/:id/messages strictly parses query parameters, maps Message DTOs and nullable cursors, and rejects malformed/duplicate/unknown query fields.
 
-HTTP/PostgreSQL tests verify empty history, initial/older/newer pages, boundary exclusion, new messages inserted between page requests, foreign-conversation numeric cursors without data leakage, invalid limits/cursors and outsider rejection. Vietnamese explanation: before retrieves history; after retrieves missed persisted messages for future reconnect recovery. No WebSocket recovery has been claimed yet.
+HTTP/PostgreSQL tests verify empty history, initial/older/newer pages, boundary exclusion, new messages inserted between page requests, foreign-conversation numeric cursors without data leakage, invalid limits/cursors and outsider rejection. Vietnamese explanation: before retrieves history; after retrieves missed persisted messages for reconnect recovery. B33 later verified this recovery with a real offline/reconnect WebSocket scenario.
 
 ## B27-B29 - Read state
 
@@ -52,6 +52,6 @@ PostgreSQL tests show reading through message 2 leaves message 3 unread, older r
 
 `go test -count=1 ./...` and `go test -race -count=1 ./...` passed with `chat_app_test`, including migration, seed, transaction, pagination, authorization and read-state tests. `go vet ./...` and `git diff --check` passed. Private schemas are removed at cleanup; existing data is preserved. Database tests are mandatory and fail rather than skip when the isolated database is unavailable.
 
-No standalone server/Flutter demo or production DB migration was performed in this session. Before running chat locally, apply both migrations and run the seed explicitly with operator-provided environment values. Source-level checks and integration tests are not a claim of B33/B34 acceptance completion.
+No standalone server/Flutter demo or production DB migration was performed in this session. Before running the current chat backend locally, apply all three active migrations and run the seed explicitly with operator-provided environment values. This historical REST-session verification is not a claim of B33/B34 completion; see BACKLOG for subsequent WebSocket acceptance results.
 
-Next: B30, after asking whether the Flutter target is mobile only or also Web. WebSocket handshake, hub, events and final acceptance remain unfinished.
+Historical next step was B30. U15 later confirmed Android/iOS-only clients, and B30-B34 are now complete; follow `WEBSOCKET_PLAN.md` and the latest BACKLOG handoff.

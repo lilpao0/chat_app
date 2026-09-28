@@ -382,7 +382,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"content\": \"Xin chao tu A\"\n}",
+          "raw": "{\n  \"content\": \"Xin chao tu A\",\n  \"request_id\": \"{{messageRequestId}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -886,6 +886,11 @@
     }
   ],
   "variable": [
+    {
+      "key": "messageRequestId",
+      "value": "550e8400-e29b-41d4-a716-446655440000",
+      "description": "Generate a new lowercase UUID for each new logical message. Keep this value and identical content/conversation when retrying or falling back from WebSocket."
+    },
     {
       "key": "baseUrl",
       "value": "http://localhost:8080"

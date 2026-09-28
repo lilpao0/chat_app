@@ -2,7 +2,7 @@
 
 A 1–1 chat backend for Flutter: registration/login, conversation lists, message history, text messages, realtime delivery, and unread state.
 
-**Current state (2026-09-28):** B01-B29, X01-X08, and P01-P14 are DONE. Auth, REST chat, user discovery/direct chats, and private/public profile APIs are implemented and tested with PostgreSQL. Startup requires DATABASE_URL and JWT_SECRET; apply both current migrations. Code is grouped under presentation/domain/data. B30 awaits the Flutter platform choice. See [BACKLOG](BACKLOG.md) for the latest handoff.
+**Current state (2026-09-28):** B01-B34, X01-X08, and P01-P14 are DONE. Auth, REST chat, user discovery/direct chats, profiles, and authenticated Android/iOS bidirectional socket commands and `new_message` delivery are implemented and tested with PostgreSQL. Startup requires DATABASE_URL and JWT_SECRET; apply all three current migrations. See [BACKLOG](BACKLOG.md) for the latest handoff.
 
 ## Where to start
 
@@ -11,6 +11,8 @@ A 1–1 chat backend for Flutter: registration/login, conversation lists, messag
 | [AGENTS.md](AGENTS.md) | Mandatory rules: small steps, Vietnamese code explanations, and scope control |
 | [WORKFLOW](WORKFLOW.md) | Workflow for one turn and the handoff template |
 | [MVP_PLAN](MVP_PLAN.md) | Eight implementation milestones, observable outcomes, acceptance criteria, and progress tracking |
+| [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md) | Implemented bidirectional protocol, retry rules and WS2 implementation sequence |
+| [WEBSOCKET_VERIFICATION.md](WEBSOCKET_VERIFICATION.md) | Full-suite verification, runtime/file map and operational prerequisites |
 | [ARCHITECTURE](ARCHITECTURE.md) | Clean Architecture in Go, structure, and dependency direction |
 | [DECISIONS](DECISIONS.md) | Source requirements, proposed additions, and open questions |
 | [CONTRACTS](CONTRACTS.md) | Intended API, data, authentication, and WebSocket behavior |
@@ -39,6 +41,6 @@ The stack follows the roadmap: Go, Gin, PostgreSQL, `database/sql`, bcrypt, JWT,
 
 From `backend/`, run `go test ./...` and `go vet ./...`. PostgreSQL integration tests are mandatory: they use `TEST_DATABASE_URL`, or derive `chat_app_test` from the local `.env` development URL, and fail rather than skip when the isolated database is unavailable. See [backend README](../README.md) for database configuration and migration instructions. The server requires `DATABASE_URL`; `HTTP_PORT` defaults to 8080.
 
-Continue with B30 after confirming mobile-only or also Flutter Web. D08-D09 were confirmed as option 1 and implemented. The user authorizes continuation until a question needs their decision.
+Bidirectional socket commands, correlated acknowledgements and durable retries are implemented. See [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md) for the protocol and [BACKLOG](BACKLOG.md) for verification. REST compatibility and history remain available.
 
 Product source: [Six-week Flutter + Golang roadmap](../../ke-hoach-6-tuan-flutter-golang-chat-app-1.md). Implementation additions are listed separately in DECISIONS; do not rewrite the source document to make proposals appear to be confirmed requirements.

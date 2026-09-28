@@ -117,6 +117,9 @@ func TestPostmanCollectionCoversOpenAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	for path, operations := range contract.Paths {
+		if path == "/ws" {
+			continue
+		}
 		for method := range operations {
 			switch method {
 			case "get", "post", "put", "patch", "delete":

@@ -8,7 +8,7 @@
 - **Explained in Vietnamese:** co-located tests are conventional in Go; separate directories are separate packages and can access only exported parent APIs.
 - **Next:** B16 still awaits the read-position choice; this directory change does not resolve D08-D09.
 
-**Latest handoff (2026-09-21):** B01-B29 of the original plan and X01-X03 extension items are DONE. See [discovery handoff](DISCOVERY_PROGRESS.md), [REST chat handoff](CHAT_PROGRESS.md), and [authentication handoff](AUTH_PROGRESS.md). U11 added search/open direct chat. B30 awaits the Flutter platform choice. The user authorizes continuation until a question needs their answer (U09).
+**Latest handoff (2026-09-28):** B01-B29, X01-X08, and P01-P14 are DONE. See the latest handoff entries below and [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md). U15 confirms Android/iOS-only realtime clients, so B30 is unblocked and remains the next runtime item. The user authorizes continuation until a question needs their answer (U09).
 
 ### X04 — DONE — Simple refresh-token flow
 
@@ -383,34 +383,137 @@ Each item specifies dependencies, verification, and concepts to explain. **Every
 - **Assigned request:** add Swagger documentation for the whole currently implemented system.
 - **Changed:** added an embedded OpenAPI 3.0 JSON contract for all current paths and operations, including JWT bearer authentication, request/response schemas, pagination, validation limits, status codes, and reusable errors. Added public `/swagger`, `/swagger/index.html`, and `/swagger/openapi.json` routes without changing application business logic. X04 subsequently added the refresh operation to the same contract.
 - **Verified:** Swagger package and all presentation HTTP tests pass; the contract test parses the embedded JSON and checks every implemented application path. Full repository checks and a live-browser smoke test are recorded in the handoff entry below.
-- **Boundary:** Swagger UI assets are pinned to Swagger UI 5.17.14 on jsDelivr, so the interactive page needs internet access; the OpenAPI contract itself is embedded and always served locally. WebSocket remains outside the spec because B30-B32 are not implemented.
+- **Boundary:** Swagger UI assets are pinned to Swagger UI 5.17.14 on jsDelivr, so the interactive page needs internet access; the OpenAPI contract itself is embedded and always served locally. This historical S01 boundary excluded WebSocket; B30-B34 later added the `/ws` handshake operation and realtime contract.
 
-## B30 — TODO — Authenticated WebSocket handshake
+## B30 — DONE — Authenticated WebSocket handshake
 
-- **Dependencies:** B12, B15, B29; confirm the target Flutter platform from DECISIONS before selecting token transport. Select a WS library and create `/ws` accepting only authorized connections.
+- **Dependencies:** B12, B15, B29; U15 confirms Android/iOS-only Bearer-header transport and I10 selects `coder/websocket` v1.8.15. Follow [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md) and create `/ws` accepting only authorized connections.
 - **Verify / explain:** valid tokens can upgrade, missing/invalid/expired tokens cannot, and tokens never appear in URLs/logs. Explain the handshake versus a normal HTTP request, origin policy, and the connection authentication lifetime.
 
-## B31 — TODO — Hub and connection lifecycle
+## B31 — DONE — Hub and connection lifecycle
 
 - **Dependencies:** B04, B30. Manage connections by authenticated user, registration/removal, one writer per connection, bounded queues, and shutdown/expiration closure according to CONTRACTS.
 - **Verify / explain:** test connect/disconnect, multiple connections, slow clients, and non-hanging shutdown; run the race detector if supported. Explain goroutines, channels, synchronization, and cleanup ownership; split into sub-items if still too large.
 
-## B32 — TODO — Publish events after commit
+## B32 — DONE — Publish events after commit
 
 - **Dependencies:** B22, B23, B31. Add a small publisher port to the send use case; wire the hub to publish `new_message` only to members after a successful commit.
 - **Verify / explain:** rollback publishes nothing, outsiders receive nothing, and publication failures still return the persisted message while recording the error at the right boundary. Explain dependency inversion, best effort, and why the DB is authoritative.
 
-## B33 — TODO — Verify the complete chat flow
+## B33 — DONE — Verify the complete chat flow
 
 - **Dependencies:** B20, B23, B26, B29, B32. Run A/B send/receive/read scenarios, deny C, disconnect, and catch up through REST; do not bundle every discovered bug fix into this turn.
 - **Verify / explain:** record each step's result using test data; compare message IDs, ordering, unread counts, and reconnect behavior. Explain the flow across layers; create a small fix item and stop according to the workflow if an issue is found.
 
-## B34 — TODO — Review run instructions and hand off the MVP
+## B34 — DONE — Review run instructions and hand off the MVP
 
 - **Dependencies:** B33 and all necessary fix items completed. Compare the README, sample configuration, contracts, migrations/seeds, and verification instructions against actual code.
 - **Verify / explain:** follow the documentation in an appropriate test environment and record verified/unverified parts; do not declare the MVP complete while criteria are missing. Explain how the next agent starts the system, verifies it, locates layers, and chooses the next task.
 
 ## Handoff log
+
+### 2026-09-28 - Full verification, documentation and release preparation
+
+- **Request:** run all tests, synchronize documentation/Swagger, commit and push the WebSocket work.
+- **Verified:** complete backend suite passed with `go test -race -count=1 -timeout=120s ./...`, including real PostgreSQL; `go vet ./...`, `go build ./...`, changed-file formatting, JSON parsing and diff checks passed.
+- **Changed:** corrected stale notification-only/no-implementation statements in DECISIONS/ARCHITECTURE/MVP_PLAN, added WS command/event/error component schemas and examples to OpenAPI 1.1.0, added contract/reference regression tests, and linked [WEBSOCKET_VERIFICATION.md](WEBSOCKET_VERIFICATION.md) with the file map and verification boundaries.
+- **Formatting caveat:** three untouched auth files have pre-existing gofmt differences; details are in the report. No unrelated application code was reformatted.
+- **Git scope:** user authorized publishing the complete pending backend WebSocket increment to the current `backend/Bao` branch on `origin`; actual commit/push result is confirmed in the final response after execution.
+- **Not performed:** device tests, development/production migration or deployment. Next operational step remains applying 000003 and integrating the mobile protocol.
+
+### Bidirectional migration tracking (U16)
+
+The earlier W01-W13 handoffs describe the notification-only baseline, not completion of bidirectional chat. The active plan is [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md).
+
+| Item | Status | Outcome |
+|---|---|---|
+| WS2-01 | DONE | Strict command/response DTOs and protocol tests |
+| WS2-02 | DONE | Durable PostgreSQL send idempotency and migration |
+| WS2-03 | DONE | Shared send/read use cases and keyed REST compatibility |
+| WS2-04 | DONE | Bounded command dispatcher and lifecycle cancellation fixes |
+| WS2-05 | DONE | Socket send, acknowledgement and production wiring |
+| WS2-06 | DONE | Socket mark-read and monotonic acknowledgement |
+| WS2-07 | DONE | Real-token, PostgreSQL, retry, reconnect and lifecycle acceptance |
+| WS2-08 | DONE | Implemented contracts, client examples and final cleanup |
+
+### 2026-09-28 - WS2-01 through WS2-08: Bidirectional implementation
+
+- **Authorization:** user explicitly requested implementation and obsolete-file cleanup.
+- **Protocol/domain:** strict text command decoding, canonical UUID correlation, sanitized errors, socket send/read acknowledgements. Both transports use the same send/read use cases; only newly committed messages publish.
+- **Storage:** forward migration 000003 adds nullable UUID retry keys and sender-scoped uniqueness. Concurrent identical retries return the original row; conflicting payloads/conversations fail safely. Membership and conversation write locks remain enforced. Up/down tested in disposable test schemas; down retains messages but removes retry metadata.
+- **Lifecycle:** bounded command queue and sequential worker, command timeout, per-connection token bucket, independent reader/writer/heartbeat/supervision, cancellation on disconnect/expiry/shutdown, bounded graceful close with I/O cancellation fallback. Checked all Origin header values. API shutdown cleanup now also runs on error paths.
+- **Cleanup:** replaced the obsolete reject-all reader and its blanket-rejection test in place; the former library.go aliases remain removed. Kept necessary hub, authentication, event/publisher adapters, REST APIs, migrations and stored data. No application-data deletion.
+- **Documentation:** updated README, contracts, decisions, plan, schema diagram, environment example, OpenAPI and Postman keyed-send example.
+- **Verified:** go test -race -count=1 -timeout=90s ./...; focused race tests for WebSocket/config; go vet ./...; git diff --check. Real PostgreSQL tests did not skip. Coverage includes concurrent same-key/cross-conversation retries, sender scoping, migration round trip, real refresh/expired JWT rejection, multi-device fanout, outsider exclusion, socket/REST retry, reconnect catch-up, monotonic read acknowledgements, malformed/binary/oversized input, command timeout/overflow/rate limiting, missing pong, expiry during blocked SQL/write/ping and forced shutdown.
+- **Reported/explained in Vietnamese:** retry transaction and publish boundary, queue/worker/context roles, lifecycle bug found by tests, compatibility cleanup and verification results.
+- **Not performed:** development/production migration, running Flutter on Android/iOS, deployment, commit or push. Apply migration 000003 before using the updated server; update any existing WS_MAX_MESSAGE_BYTES=1024 override to 16384.
+- **Limits:** one API process; best-effort events with no replay/exactly-once delivery; no distributed hub, recipient read receipts or browser support. REST synchronization is still required.
+- **Next:** apply the new migration to the intended development DB and integrate the documented mobile send/retry/catch-up flow.
+
+### 2026-09-28 - U16: Bidirectional migration plan and cleanup
+
+- **Completed:** replaced the obsolete active notification-only plan with WS2-01 through WS2-08, including command envelopes, acknowledgement/error correlation, durable retry keys, lifecycle fixes, compatibility strategy, tests, and safe reconnect cursor guidance. Updated decisions, contracts and entry-point documentation to distinguish current runtime from planned behavior.
+- **Removed:** the temporary `presentation/websocket/library.go` constant-alias shim. Its remaining internal test references now use `coder/websocket` constants directly. The removed aliases contain no application data and can be recreated from the dependency constants.
+- **Preserved:** REST endpoints, stored messages, authentication, hub, membership checks, history and current rejection guard until the command dispatcher replaces it safely.
+- **Verification:** non-database WebSocket tests passed under the race detector and `git diff --check` passed. The complete WebSocket package failed at `TestRealtimeRESTAcceptance` with `requires chat_app_test`, including on retry outside the sandbox; database-backed acceptance could not be verified in this turn. No migration was executed and bidirectional commands remain unimplemented.
+- **Next:** WS2-01. Commit/push are not part of this planning cleanup.
+
+### 2026-09-28 - W06-W13 / B30-B34: Complete realtime WebSocket delivery
+
+- **Status:** DONE. The user explicitly requested completion of the remaining WebSocket scope and a final report.
+- **Hub/lifecycle:** added a thread-safe in-memory hub keyed by user ID, multiple devices per user, idempotent registration cleanup, bounded per-connection queues, one sequential writer, one reader, configured read/write/ping/pong limits, policy closure for unsupported client frames and token expiry, slow-client isolation, and graceful server shutdown.
+- **Commit/publish boundary:** added a domain publisher port and best-effort failure reporter. `Send` publishes only the message returned after the PostgreSQL transaction commits; validation, rollback, or repository failure never publishes. A publication failure is reported but the persisted message remains a successful REST result.
+- **Authorization/event:** added deterministic PostgreSQL member-ID lookup and a presentation publisher that sends the exact `new_message` DTO only to persisted active conversation members, including every online device of the sender and recipient. Outsiders receive no event; clients recover missed messages through REST `after_id`.
+- **Production:** loads validated WebSocket configuration, registers authenticated `GET /ws`, wires the hub publisher into REST send, documents `/ws` in OpenAPI while keeping Postman REST-only, and closes upgraded connections during graceful shutdown before database teardown.
+- **Acceptance:** real WebSocket/HTTP/PostgreSQL coverage connects A, B, and outsider C; verifies member delivery and outsider isolation; disconnects B, persists a message while offline, reconnects B, and recovers exactly that message through history. Focused tests also cover handshake failures, multiple devices, unsupported input, token expiry, shutdown, recipient failures, canceled DB context, and commit-before-publish behavior. Existing REST coverage verifies monotonic read/unread behavior.
+- **Verification:** `gofmt` completed; OpenAPI and Postman JSON parse; `go test -race -count=1 ./...`, `go vet ./...`, and `git diff --check` passed. PostgreSQL tests ran against `chat_app_test` without skips.
+- **Limitations:** one process/in-memory hub, best-effort live delivery, no replay/exactly-once guarantee, REST-only sends/read markers, no browser/Flutter Web, and no typing/presence/read-receipt/media/group-chat events.
+- **Next:** connect the Flutter Android/iOS client using the documented Bearer-header example and use REST `after_id` after every reconnect.
+
+### 2026-09-28 - W05: Authenticated WebSocket handshake handler
+
+- **Status:** DONE as the isolated handshake step; B30 remains TODO until the production route is wired to a real lifecycle component.
+- **Changed:** added a Gin WebSocket handler that rejects non-GET and browser-Origin requests, applies shared Bearer authentication before upgrade, accepts the socket with `coder/websocket`, passes the complete identity to a narrow `SessionRunner`, and force-closes the connection after the runner returns. No request context is incorrectly reused as the long-lived socket context.
+- **Contract:** pre-upgrade failures use JSON HTTP responses: 405 `method_not_allowed`, 403 `origin_not_allowed`, and 401 `unauthenticated`. Once upgrade succeeds, the handler does not attempt to write HTTP errors.
+- **Tests:** real `coder/websocket.Dial` coverage proves successful upgrade and identity/expiry propagation; missing, malformed, wrong-scheme, duplicate, invalid, refresh, expired, and internally failed authentication cannot upgrade; browser Origin and non-GET requests never reach verification/session execution.
+- **Verification:** `gofmt` completed; focused WebSocket tests, all presentation tests, full PostgreSQL-backed `go test -count=1 ./...`, `go vet ./...`, and `git diff --check` passed without skips.
+- **Boundary:** no production route, hub, connection loops, queue, ping/pong, token-expiry close, publisher, or realtime event was added.
+- **Next:** W06/B31a - implement the in-memory hub's registration, idempotent removal, user-targeted bounded fan-out, and shutdown behavior.
+
+### 2026-09-28 - W04: Shared strict Bearer authentication
+
+- **Status:** DONE. The user implemented the shared authentication helper and refactored REST middleware; review found no code correction necessary.
+- **Changed:** added presentation-level `authentication.VerifyBearer`, which accepts exactly one Authorization header, parses a case-insensitive Bearer scheme, delegates token verification once, rejects non-positive identities, preserves token expiry, and sanitizes every failure to `ErrInvalidToken`. HTTP middleware aliases the shared verifier interface and retains its existing Gin identity storage and 401 response.
+- **Tests:** direct helper coverage proves valid identity/expiry propagation, whitespace and scheme behavior, zero verifier calls for malformed headers, one call for structurally valid tokens, duplicate rejection, non-positive identity rejection, and sanitization of internal verifier details. Existing middleware and HTTP integration coverage confirms no REST behavior regression.
+- **Verification:** `gofmt -d` produced no output; targeted authentication/middleware/presentation tests, full PostgreSQL-backed `go test -count=1 ./...`, `go vet ./...`, and `git diff --check` passed without skips.
+- **Boundary:** no `/ws` route, upgrade, connection, hub, goroutine, publisher, or realtime event was implemented.
+- **Next:** W05/B30 - implement and test the authenticated WebSocket handshake without adding hub lifecycle or message publication.
+
+### 2026-09-28 - W03: Validated WebSocket lifecycle configuration
+
+- **Status:** DONE. The user implemented the configuration and tests; review found no code correction necessary.
+- **Changed:** added `WebSocketConfig` and `LoadWebSocket` with bounded queue/frame sizes, write/pong/ping/shutdown durations, safe defaults, per-variable errors, and the invariant that ping interval is shorter than pong timeout. Added matching optional values to `.env.example` and recorded the concrete contract values.
+- **Tests:** cover all defaults, a complete valid override, malformed/zero/negative/too-large values, sub-second durations, and equal ping/pong intervals. Environment state is isolated with `t.Setenv`; no environment-mutating test runs in parallel.
+- **Verification:** `gofmt -d` produced no output; `go test -count=1 ./cmd/api/config`, full PostgreSQL-backed `go test -count=1 ./...`, `go vet ./...`, and `git diff --check` passed without skips.
+- **Boundary:** configuration is intentionally not loaded by `main.go` yet. No `/ws` route, authentication refactor, handshake, hub, goroutine, publisher, or realtime event exists.
+- **Next:** W04 - share strict Bearer authentication between REST middleware and the future WebSocket handshake.
+
+### 2026-09-28 - W02: Select and pin the WebSocket library
+
+- **Status:** DONE. The user added the selected dependency and compile-smoke package; the assistant completed dependency normalization, documentation, and verification.
+- **Changed:** pinned `github.com/coder/websocket` v1.8.15 as a direct dependency and added `internal/presentation/websocket/library.go`, which imports the library and exposes the normal, going-away, and policy-violation close statuses needed by later lifecycle work. Recorded implementation decision I10.
+- **Reason:** the library provides context-aware server/client APIs, close codes, ping/pong, read limits, and no transitive dependencies. The application will retain one sequential writer loop per connection for ordering and simple ownership.
+- **Verification:** `go mod tidy`, `go list -m github.com/coder/websocket`, `go mod verify`, `go test -count=1 ./...`, and `go vet ./...` passed. PostgreSQL integration tests executed against the isolated test database and did not skip.
+- **Boundary:** no `/ws` route, configuration, authentication refactor, handshake, hub, connection lifecycle, publisher, or realtime event was implemented.
+- **Next:** W03 - add validated WebSocket lifecycle configuration.
+
+### 2026-09-28 - W01: Android/iOS WebSocket implementation plan
+
+- **Status:** DONE. The user confirmed Flutter Android/iOS-only support and requested a detailed stored implementation plan.
+- **Changed:** added `WEBSOCKET_PLAN.md` with W01-W13 covering library selection, configuration, shared Bearer authentication, `/ws` handshake, hub and connection lifecycle, commit-before-publish integration, authoritative recipients, production wiring, A/B/C acceptance testing, and final documentation. Linked it from the README and B30.
+- **Decision/contract:** recorded U15. Mobile uses the access token in the Authorization handshake header; query-string tokens, Flutter Web, and browser clients are out of scope. Browser Origin requests are rejected before upgrade.
+- **Verification:** documentation links, statuses, terminology, and whitespace were checked with `rg` and `git diff --check`. No Go code, dependency, route, runtime behavior, commit, or push was added by this planning item.
+- **Next:** W02/B30 - select and pin the WebSocket library, then implement in the small ordered steps in `WEBSOCKET_PLAN.md`.
 
 ### 2026-09-28 - P09-P14: Complete profile updates and final verification
 
@@ -421,7 +524,7 @@ Each item specifies dependencies, verification, and concepts to explain. **Every
 - **P13:** regression coverage verifies that public profiles expose only ID/name/avatar, private fields stay private, immutable fields survive updates, and the fixed avatar default remains consistent across repository-backed user surfaces. The complete existing auth, discovery, conversation, message, profile, and migration suites passed together.
 - **P14:** synchronized contracts, decisions, README state, Swagger, Postman, task statuses, and this handoff. Removed the completed temporary `PROFILE_PLAN.md`; `CONTRACTS.md` and this backlog remain the durable sources.
 - **Verification:** `gofmt` completed; JSON parsing passed for OpenAPI and Postman; `go test -race -count=1 ./...`, `go vet ./...`, and `git diff --check` passed. PostgreSQL integration tests ran against the isolated `chat_app_test` database and did not skip.
-- **Deferred:** avatar upload/edit, email changes, phone OTP, and profile/account deletion remain outside this increment. B30 still awaits the Flutter platform decision before WebSocket work.
+- **Deferred:** avatar upload/edit, email changes, phone OTP, and profile/account deletion remain outside this increment. U15 later resolved the platform decision; B30 remains unimplemented.
 
 ### 2026-09-28 - P08: Preserve PATCH field presence
 

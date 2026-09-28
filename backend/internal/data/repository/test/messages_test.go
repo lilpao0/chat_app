@@ -101,3 +101,29 @@ func TestSendTransaction(t *testing.T) {
 		t.Fatal("second writer stuck")
 	}
 }
+
+func TestConversationMemberIDs(t *testing.T) {
+	db := testutil.Database(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	fixture, err := seed.Demo(ctx, db,
+		repository.CreateUser{FirstName: "A", Email: "members-a@example.test", PasswordHash: "fixture-hash"},
+		repository.CreateUser{FirstName: "B", Email: "members-b@example.test", PasswordHash: "fixture-hash"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo := datarepo.NewPostgresConversationRepository(db)
+	ids, err := repo.MemberIDs(ctx, fixture.ConversationID)
+	if err != nil || len(ids) != 2 || ids[0] != fixture.UserAID || ids[1] != fixture.UserBID {
+		t.Fatalf("ids=%v err=%v", ids, err)
+	}
+	if _, err := repo.MemberIDs(ctx, 999999999); !errors.Is(err, entity.ErrConversationNotFound) {
+		t.Fatalf("missing error=%v", err)
+	}
+	canceled, stop := context.WithCancel(context.Background())
+	stop()
+	if _, err := repo.MemberIDs(canceled, fixture.ConversationID); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled error=%v", err)
+	}
+}

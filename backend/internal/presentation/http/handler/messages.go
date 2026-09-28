@@ -14,6 +14,9 @@ import (
 type SendMessageUseCase interface {
 	Execute(context.Context, int64, int64, string) (entity.Message, error)
 }
+type keyedMessageSender interface {
+	ExecuteWithRequestID(context.Context, int64, int64, string, string) (entity.Message, error)
+}
 type SendMessageHandler struct{ send SendMessageUseCase }
 
 func NewSendMessageHandler(send SendMessageUseCase) *SendMessageHandler {
@@ -33,6 +36,8 @@ func toMessageDTO(m entity.Message) messageDTO {
 }
 func chatError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, entity.ErrRequestConflict):
+		response.Error(c, 409, "request_conflict", "Request ID was already used.")
 	case errors.Is(err, entity.ErrInvalidInput):
 		response.Error(c, 400, "invalid_input", "The submitted information is invalid.")
 	case errors.Is(err, entity.ErrConversationNotFound):
@@ -60,12 +65,28 @@ func (h *SendMessageHandler) Send(c *gin.Context) {
 		return
 	}
 	var body struct {
-		Content string `json:"content"`
+		Content   string  `json:"content"`
+		RequestID *string `json:"request_id"`
 	}
 	if !readJSON(c, &body) {
 		return
 	}
-	message, err := h.send.Execute(c.Request.Context(), id, actor, body.Content)
+	var message entity.Message
+	var err error
+	if body.RequestID != nil {
+		if !entity.ValidRequestID(*body.RequestID) {
+			chatError(c, entity.ErrInvalidInput)
+			return
+		}
+		sender, ok := h.send.(keyedMessageSender)
+		if !ok {
+			chatError(c, errors.New("keyed send unavailable"))
+			return
+		}
+		message, err = sender.ExecuteWithRequestID(c.Request.Context(), id, actor, body.Content, *body.RequestID)
+	} else {
+		message, err = h.send.Execute(c.Request.Context(), id, actor, body.Content)
+	}
 	if err != nil {
 		chatError(c, err)
 		return

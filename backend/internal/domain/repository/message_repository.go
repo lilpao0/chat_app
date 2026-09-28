@@ -9,6 +9,10 @@ type MessageWriter interface {
 	Send(context.Context, int64, int64, string) (entity.Message, error)
 }
 
+type IdempotentMessageWriter interface {
+	SendOnce(context.Context, int64, int64, string, string) (entity.Message, bool, error)
+}
+
 type MembershipReader interface {
 	IsMember(context.Context, int64, int64) (bool, error)
 }

@@ -1,6 +1,6 @@
 # User discovery and direct chat - 2026-09-21
 
-User decision U11 expanded the original demo-only scope. X01-X03 are complete; B01-B29 of the original plan remain complete, while B30-B34 are unfinished. No existing database migration was added, no development data was changed, and no Flutter UI was implemented.
+User decision U11 expanded the original demo-only scope. X01-X03 were completed in this historical handoff; B30-B34 were later completed by the WebSocket increment. No migration was required for discovery or the notification-only baseline; the subsequent bidirectional WS2 increment adds migration 000003 for retry keys. No development data was changed and no Flutter UI was implemented.
 
 ## X01: Search
 
@@ -20,4 +20,4 @@ User decision U11 expanded the original demo-only scope. X01-X03 are complete; B
 
 ## X03: Documentation and verification
 
-U11 supersedes the former demo-only search/creation exclusion in AGENTS, DECISIONS, CONTRACTS and MVP_PLAN. README files describe the two new routes. `go test -race -count=1 ./...`, `go vet ./...` and `git diff --check` passed. PostgreSQL integration tests use private schemas in chat_app_test and clean them up. B30 still needs the mobile-only versus mobile-and-Web platform answer before selecting the WebSocket handshake.
+U11 supersedes the former demo-only search/creation exclusion in AGENTS, DECISIONS, CONTRACTS and MVP_PLAN. README files describe the two new routes. `go test -race -count=1 ./...`, `go vet ./...` and `git diff --check` passed. PostgreSQL integration tests use private schemas in chat_app_test and clean them up. This historical handoff originally left the B30 platform choice open; U15 later resolved it as Android/iOS only.

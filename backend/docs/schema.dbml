@@ -75,9 +75,11 @@ Table messages {
   conversation_id bigint [not null]
   sender_id bigint [not null]
   content text [not null]
+  client_request_id uuid [null]
   created_at timestamptz [not null, default: `clock_timestamp()`]
 
   Indexes {
+    (sender_id, client_request_id) [unique]
     // Supports history pagination and the last-message lookup.
     (conversation_id, id) [unique]
   }

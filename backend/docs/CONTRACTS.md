@@ -1,6 +1,6 @@
 # Proposed Backend Contracts
 
-Implemented through B29, extensions X01-X08, and profile P01-P14: **health, authentication and refresh tokens, user search, private/public profile reads and updates, opening direct 1-1 chats, conversation lists, messaging, history and read/unread state**. WebSocket remains planned. [DECISIONS](DECISIONS.md) records U10/U11/U14. Explain these contracts in Vietnamese.
+Implemented through B34, extensions X01-X08, and profile P01-P14: **health, authentication and refresh tokens, user search, private/public profile reads and updates, opening direct 1-1 chats, conversation lists, messaging, history, read/unread state, and authenticated realtime `new_message` delivery**. [DECISIONS](DECISIONS.md) records U10/U11/U14/U15. Explain these contracts in Vietnamese.
 
 ## 1. General conventions
 
@@ -9,7 +9,7 @@ Implemented through B29, extensions X01-X08, and profile P01-P14: **health, auth
 - Protected endpoints accept `Authorization: Bearer <access_token>`. Obtain identity from the verified token, not the body/query.
 - Handlers validate JSON/path/query formats; use cases enforce business rules and authorization. Reject unsupported fields, including a forged `sender_id` in send-message requests.
 - Return empty arrays as `[]`, not `null`; document nullable fields explicitly. Do not expose entities containing sensitive data directly as JSON responses.
-- Proposed body limit: 16 KiB for current JSON requests; return 413 when exceeded. Set HTTP/DB timeouts and introduce connection/frame-size limits when implementing WebSocket.
+- REST JSON bodies are limited to 16 KiB and return 413 when exceeded. WebSocket queue, frame, write, heartbeat, and shutdown limits are configured separately below.
 - Invalid input returns 400. JSON endpoints require a JSON content type; unsupported content types return 415.
 
 ### Consistent errors
@@ -226,7 +226,7 @@ Clients retain a synchronization checkpoint from successfully received REST page
 
 ## 5. Data model and invariants
 
-This schema is implemented by migrations 000001 and 000002. Apply them explicitly; test verification does not migrate the development database:
+This schema is implemented by migrations 000001, 000002 and 000003. Apply them explicitly; test verification does not migrate the development database:
 
 | Table | Main fields | Required constraints |
 |---|---|---|
@@ -273,15 +273,20 @@ Unread count equals messages in the conversation sent by someone other than the 
 
 ## 6. Realtime WebSocket
 
-The current assumption is Flutter mobile. Verify the target platform before implementing the handshake; if Flutter Web is included, revise authentication transport for browser capabilities.
+Bidirectional commands are implemented; [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md) contains full command/response examples and retry semantics.
+
+The confirmed clients are Flutter Android and iOS only. Flutter Web and browser clients are outside the current scope.
 
 - Mobile supplies the Bearer token through a handshake header; [Dart WebSocket.connect](https://api.dart.dev/dart-io/WebSocket/connect.html) supports additional headers. Authenticate before upgrade; invalid tokens return HTTP 401. Do not put long-lived access tokens in URL query parameters.
+- Before upgrade, non-GET requests return 405 `method_not_allowed`, a nonempty browser Origin returns 403 `origin_not_allowed`, and authentication failures return 401 `unauthenticated`. These remain normal JSON HTTP errors because no protocol upgrade has occurred.
 - Derive connection identity from the token; clients cannot freely subscribe to other users/conversations. Determine recipients from stored membership.
 - `new_message` contains the committed Message DTO. Deliver it to connections belonging to both members so multiple devices can synchronize; deduplicate by message ID.
-- Sending remains REST-based. The MVP accepts no WS commands to create messages or change read markers; unsupported client data frames are rejected/the connection closed according to the protocol documented during implementation.
+- Send `send_message` or `mark_read` as one text JSON object with `type`, canonical lowercase UUID `request_id`, and `data`. Receive `message_sent`, `read_updated`, or a correlated `error`. Invalid/unparseable request IDs yield `request_id: null`. Unknown fields, missing/null required data and invalid types are rejected. Unsupported commands produce `unsupported_command`; binary closes with 1003; oversized input closes with 1009.
+- Send retries share a durable `(sender_id, client_request_id)` key. Identical conversation/content returns the original message without republishing; different content/conversation returns `request_conflict`. REST send accepts the same optional `request_id` (omitted/null means unkeyed), returning HTTP 409 for conflicts. Unkeyed REST retains its original behavior. Keys live as long as the message.
+- Acknowledgement and fan-out ordering is unspecified. Merge by message ID. Read markers are monotonic and acknowledgements are private to the submitting socket.
 - Each connection has a bounded buffer and one sequential writer; slow clients must not block the entire hub. Add ping/pong, deadlines, and goroutine cleanup on disconnect/shutdown. Select concrete limits during lifecycle work and record them in configuration.
-- If the token expires while a socket is open, close it (proposed close code 1008, a policy violation under [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1)); the client must log in before reconnecting. Do not authenticate once and allow the socket to remain open indefinitely.
-- If a browser Origin is present, apply a configured allowlist; HTTP CORS does not replace WS Origin validation. Do not default to a wildcard.
+- If the token expires while a socket is open, close it (close code 1008, a policy violation under [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1)); the client must refresh or obtain a valid access token before reconnecting. Do not authenticate once and allow the socket to remain open indefinitely.
+- Reject a nonempty browser Origin before upgrade because browser clients are outside the confirmed scope. HTTP CORS does not authenticate a WebSocket handshake.
 
 ```json
 {
@@ -312,7 +317,16 @@ The API and seed commands load optional `.env` values from the current working d
 | `JWT_TTL` | Default `24h`; duration of at least 1s for JWT second precision; a demo value rather than production policy | B12 |
 | `JWT_REFRESH_TTL` | Default `720h` (30 days); duration of at least 1s; refresh JWT lifetime for the simple MVP flow | U12 |
 | A/B seed configuration | Demo emails/names and local passwords supplied by the operator; required only by the seed, not normal server execution | B17 |
-| WS origin, buffer, timeout | Select and document concrete values during lifecycle work; no default wildcard origin | B30–B31 |
+| `WS_COMMAND_QUEUE_CAPACITY` | Default 16; integer 1-10,000 | WS2-04 |
+| `WS_COMMAND_TIMEOUT` | Default 5s; duration of at least 1s | WS2-04 |
+| `WS_COMMAND_RATE` | Default 10 commands/second; integer 1-10,000 per connection | WS2-04 |
+| `WS_COMMAND_BURST` | Default 20; integer 1-10,000; exhausted bucket closes with 1008 (best-effort rate_limited error) | WS2-04 |
+| `WS_SEND_QUEUE_CAPACITY` | Default 64; integer 1-10,000; bounded outbound events per connection | W03/B31 |
+| `WS_MAX_MESSAGE_BYTES` | Default 16,384; integer 1-1,048,576; entire inbound WebSocket message limit | W03/B31 |
+| `WS_WRITE_TIMEOUT` | Default 10s; duration of at least 1s | W03/B31 |
+| `WS_PONG_TIMEOUT` | Default 60s; duration of at least 1s | W03/B31 |
+| `WS_PING_INTERVAL` | Default 25s; duration of at least 1s and shorter than `WS_PONG_TIMEOUT` | W03/B31 |
+| `WS_SHUTDOWN_TIMEOUT` | Default 10s; duration of at least 1s | W03/B31 |
 
 Example files contain placeholders for secrets/passwords only. Select, explain in Vietnamese, and document HTTP read/write/idle timeouts and the shutdown timeout in B04. WS receives its own deadlines in B31 so short-request timeouts are not mistakenly applied to long-lived connections.
 

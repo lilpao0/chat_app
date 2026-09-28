@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Chat App API",
-    "version": "1.0.0",
-    "description": "REST API for registration, authentication, user discovery, direct conversations, messaging, history, and read state. Protected operations require a JWT access token."
+    "version": "1.1.0",
+    "description": "REST and bidirectional WebSocket API for registration, authentication, user discovery, direct conversations, messaging, history, and read state. Protected operations require a JWT access token."
   },
   "servers": [{ "url": "/", "description": "Current server" }],
   "tags": [
@@ -24,6 +24,21 @@
             "description": "Server is healthy",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
           }
+        }
+      }
+    },
+    "/ws": {
+      "get": {
+        "tags": ["Messages"],
+        "summary": "Open bidirectional realtime chat",
+        "description": "Flutter Android/iOS clients send the access token in the Authorization header. Send send_message/mark_read commands with a canonical UUID request_id and data. Receive message_sent/read_updated/error replies plus new_message broadcasts. Durable keyed retries prevent duplicate persistence. See docs/WEBSOCKET_PLAN.md. REST history remains the reconnect recovery path. Open the socket and buffer events before fetching all pages from the last completed REST checkpoint (not the largest live-event ID). Merge by message ID. Swagger UI Try it out sends HTTP only and is not a WebSocket command client. See the WS schemas below; x-websocket is a documentation extension, not an HTTP response body. Example text command: {\"type\":\"send_message\",\"request_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"data\":{\"conversation_id\":10,\"content\":\"Hello\"}}. Retrying the same sender/key and identical data returns the original message without broadcasting again; conflicting reuse produces request_conflict. Acknowledgement/event order is unspecified. Binary closes with 1003, oversized messages with 1009, expiry/queue/rate violations with 1008; shutdown uses 1001 where possible.",
+        "operationId": "openRealtimeStream",
+        "x-websocket": { "clientMessages": [{"$ref":"#/components/schemas/WSSendMessageCommand"},{"$ref":"#/components/schemas/WSMarkReadCommand"}], "serverMessages": [{"$ref":"#/components/schemas/WSMessageSent"},{"$ref":"#/components/schemas/WSReadUpdated"},{"$ref":"#/components/schemas/WSNewMessage"},{"$ref":"#/components/schemas/WSError"}] },
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "101": { "description": "WebSocket protocol upgrade accepted" },
+          "401": { "$ref": "#/components/responses/Unauthenticated" },
+          "403": { "description": "Browser Origin is not supported", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },
@@ -215,7 +230,8 @@
         "security": [{ "bearerAuth": [] }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SendMessageRequest" } } } },
         "responses": {
-          "201": { "description": "Message committed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } } } },
+          "409": { "description": "Request ID already used for different conversation/content", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "201": { "description": "Message committed or keyed retry returned", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } } } },
           "400": { "$ref": "#/components/responses/InvalidInput" },
           "401": { "$ref": "#/components/responses/Unauthenticated" },
           "404": { "$ref": "#/components/responses/ConversationNotFound" },
@@ -263,6 +279,13 @@
       "InternalError": { "description": "Unexpected server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "error": { "code": "internal_error", "message": "Unable to complete the request." } } } } }
     },
     "schemas": {
+      "WSRequestID": {"type":"string","format":"uuid","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$","example":"550e8400-e29b-41d4-a716-446655440000"},
+      "WSSendMessageCommand": {"type":"object","additionalProperties":false,"required":["type","request_id","data"],"properties":{"type":{"type":"string","enum":["send_message"]},"request_id":{"$ref":"#/components/schemas/WSRequestID"},"data":{"type":"object","additionalProperties":false,"required":["conversation_id","content"],"properties":{"conversation_id":{"$ref":"#/components/schemas/PositiveID"},"content":{"type":"string","minLength":1,"maxLength":2000,"description":"Valid UTF-8, no NUL, nonblank; original whitespace preserved."}}}}},
+      "WSMarkReadCommand": {"type":"object","additionalProperties":false,"required":["type","request_id","data"],"properties":{"type":{"type":"string","enum":["mark_read"]},"request_id":{"$ref":"#/components/schemas/WSRequestID"},"data":{"type":"object","additionalProperties":false,"required":["conversation_id","last_read_message_id"],"properties":{"conversation_id":{"$ref":"#/components/schemas/PositiveID"},"last_read_message_id":{"$ref":"#/components/schemas/PositiveID"}}}}},
+      "WSMessageSent": {"type":"object","additionalProperties":false,"required":["type","request_id","data"],"properties":{"type":{"type":"string","enum":["message_sent"]},"request_id":{"$ref":"#/components/schemas/WSRequestID"},"data":{"$ref":"#/components/schemas/Message"}}},
+      "WSReadUpdated": {"type":"object","additionalProperties":false,"required":["type","request_id","data"],"properties":{"type":{"type":"string","enum":["read_updated"]},"request_id":{"$ref":"#/components/schemas/WSRequestID"},"data":{"type":"object","additionalProperties":false,"required":["conversation_id","last_read_message_id"],"properties":{"conversation_id":{"$ref":"#/components/schemas/PositiveID"},"last_read_message_id":{"$ref":"#/components/schemas/PositiveID"}}}}},
+      "WSNewMessage": {"type":"object","additionalProperties":false,"required":["type","data"],"properties":{"type":{"type":"string","enum":["new_message"]},"data":{"$ref":"#/components/schemas/Message"}}},
+      "WSError": {"type":"object","additionalProperties":false,"required":["type","request_id","error"],"properties":{"type":{"type":"string","enum":["error"]},"request_id":{"type":"string","format":"uuid","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$","example":"550e8400-e29b-41d4-a716-446655440000","nullable":true,"description":"Null when correlation could not be validated or for a connection-level rate error."},"error":{"type":"object","additionalProperties":false,"required":["code","message"],"properties":{"code":{"type":"string","enum":["invalid_input","unsupported_command","not_found","request_conflict","rate_limited","internal_error"]},"message":{"type":"string"}}}}},
       "PositiveID": { "type": "integer", "format": "int64", "minimum": 1, "example": 10 },
       "HealthResponse": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["ok"] } } },
       "Error": { "type": "object", "required": ["code", "message"], "properties": { "code": { "type": "string", "example": "invalid_input" }, "message": { "type": "string", "example": "The submitted information is invalid." } } },
@@ -288,7 +311,7 @@
       "DirectConversationResponse": { "type": "object", "required": ["conversation"], "properties": { "conversation": { "$ref": "#/components/schemas/DirectConversation" } } },
       "ConversationSummary": { "type": "object", "required": ["id", "user", "last_message", "last_message_at", "unread_count"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "user": { "$ref": "#/components/schemas/Participant" }, "last_message": { "type": "string", "nullable": true, "example": "Hello" }, "last_message_at": { "type": "string", "format": "date-time", "nullable": true }, "unread_count": { "type": "integer", "format": "int64", "minimum": 0 } } },
       "Message": { "type": "object", "required": ["id", "conversation_id", "sender_id", "content", "created_at"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "conversation_id": { "$ref": "#/components/schemas/PositiveID" }, "sender_id": { "$ref": "#/components/schemas/PositiveID" }, "content": { "type": "string", "minLength": 1, "maxLength": 2000, "example": "Hello" }, "created_at": { "type": "string", "format": "date-time" } } },
-      "SendMessageRequest": { "type": "object", "additionalProperties": false, "required": ["content"], "properties": { "content": { "type": "string", "minLength": 1, "maxLength": 2000, "description": "Original text is preserved; it must be valid UTF-8, contain no NUL, be nonempty after trimming whitespace, and contain at most 2,000 Unicode code points", "example": "Hello" } } },
+      "SendMessageRequest": { "type": "object", "additionalProperties": false, "required": ["content"], "properties": { "request_id": { "type": "string", "nullable": true, "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "Optional durable sender-scoped retry key. Reuse with identical content and conversation. Null/omitted uses legacy unkeyed sending." }, "content": { "type": "string", "minLength": 1, "maxLength": 2000, "description": "Original text is preserved; it must be valid UTF-8, contain no NUL, be nonempty after trimming whitespace, and contain at most 2,000 Unicode code points", "example": "Hello" } } },
       "MessageResponse": { "type": "object", "required": ["message"], "properties": { "message": { "$ref": "#/components/schemas/Message" } } },
       "MessagePage": { "type": "object", "required": ["items", "has_more", "next_before_id", "next_after_id"], "properties": { "items": { "type": "array", "items": { "$ref": "#/components/schemas/Message" } }, "has_more": { "type": "boolean" }, "next_before_id": { "allOf": [{ "$ref": "#/components/schemas/PositiveID" }], "nullable": true }, "next_after_id": { "allOf": [{ "$ref": "#/components/schemas/PositiveID" }], "nullable": true } } },
       "MarkReadRequest": { "type": "object", "additionalProperties": false, "required": ["last_read_message_id"], "properties": { "last_read_message_id": { "$ref": "#/components/schemas/PositiveID" } } },

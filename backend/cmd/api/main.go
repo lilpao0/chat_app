@@ -23,6 +23,7 @@ import (
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/user"
 	presentation "github.com/lilpao0/chat_app/backend/internal/presentation/http"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/handler"
+	presentationws "github.com/lilpao0/chat_app/backend/internal/presentation/websocket"
 )
 
 func main() {
@@ -42,6 +43,10 @@ func run() error {
 	jwtCfg, err := config.LoadJWT()
 	if err != nil {
 		return fmt.Errorf("load JWT config: %w", err)
+	}
+	wsCfg, err := config.LoadWebSocket()
+	if err != nil {
+		return fmt.Errorf("load WebSocket config: %w", err)
 	}
 	tokens, err := dataauth.NewJWTWithRefreshTTL(jwtCfg.Secret, jwtCfg.Issuer, jwtCfg.Audience, jwtCfg.TTL, jwtCfg.RefreshTTL)
 	if err != nil {
@@ -81,9 +86,30 @@ func run() error {
 	login := domainauth.NewLogin(users, passwords, tokens)
 	refresh := domainauth.NewRefresh(tokens)
 	r, protected := presentation.NewRouter(register, login, refresh, tokens)
+	commands := &presentationws.Commands{}
+	hub := presentationws.NewHub(presentationws.LifecycleConfig{
+		CommandQueueCapacity: wsCfg.CommandQueueCapacity, CommandTimeout: wsCfg.CommandTimeout, CommandRate: wsCfg.CommandRate, CommandBurst: wsCfg.CommandBurst,
+		SendQueueCapacity: wsCfg.SendQueueCapacity,
+		MaxMessageBytes:   wsCfg.MaxMessageBytes,
+		WriteTimeout:      wsCfg.WriteTimeout,
+		PongTimeout:       wsCfg.PongTimeout,
+		PingInterval:      wsCfg.PingInterval,
+	}, commands)
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), wsCfg.ShutdownTimeout)
+		defer cancel()
+		if err := hub.Shutdown(ctx); err != nil {
+			log.Printf("WebSocket shutdown: %v", err)
+		}
+	}()
+	wsHandler := presentationws.NewHandler(tokens, hub)
+	presentation.RegisterWebSocketRoute(r, wsHandler.Handle)
 	conversations := datarepo.NewPostgresConversationRepository(db)
 	discovery := handler.NewDiscoveryHandler(user.NewSearch(users), conversation.NewOpenDirect(conversations))
 	messages := datarepo.NewPostgresMessageRepository(db)
+	send := message.NewSendWithPublisher(messages, presentationws.NewPublisher(conversations, hub), func(err error) { log.Printf("realtime publication: %v", err) })
+	commands.Send = send
+	commands.Read = conversation.NewMarkRead(messages)
 	presentation.RegisterProtectedRoutes(protected, presentation.ProtectedHandlers{
 		SearchUsers:       discovery.Search,
 		GetPrivateProfile: profiles.GetPrivate,
@@ -91,7 +117,7 @@ func run() error {
 		UpdateProfile:     profiles.Update,
 		OpenDirect:        discovery.OpenDirect,
 		ListConversations: handler.NewConversationsHandler(conversation.NewList(conversations)).List,
-		SendMessage:       handler.NewSendMessageHandler(message.NewSend(messages)).Send,
+		SendMessage:       handler.NewSendMessageHandler(send).Send,
 		MessageHistory:    handler.NewHistoryHandler(message.NewHistory(messages)).Get,
 		MarkRead:          handler.NewReadHandler(conversation.NewMarkRead(messages)).Mark,
 	})
@@ -132,7 +158,13 @@ func run() error {
 	defer shutdownCancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
+		_ = server.Close()
 		return fmt.Errorf("server shutdown: %w", err)
+	}
+	wsShutdownCtx, wsShutdownCancel := context.WithTimeout(context.Background(), wsCfg.ShutdownTimeout)
+	defer wsShutdownCancel()
+	if err := hub.Shutdown(wsShutdownCtx); err != nil {
+		return fmt.Errorf("WebSocket shutdown: %w", err)
 	}
 
 	log.Println("server gracefully stopped")

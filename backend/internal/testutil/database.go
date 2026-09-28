@@ -68,6 +68,7 @@ func Database(t *testing.T) *sql.DB {
 	for _, file := range []string{
 		"000001_initial_schema.up.sql",
 		"000002_default_user_avatar.up.sql",
+		"000003_message_request_id.up.sql",
 	} {
 		body, err := os.ReadFile(filepath.Join(filepath.Dir(source), "..", "..", "migrations", file))
 		if err != nil {

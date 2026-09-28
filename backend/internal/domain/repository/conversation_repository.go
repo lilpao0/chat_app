@@ -8,3 +8,7 @@ import (
 type ConversationRepository interface {
 	ListForUser(context.Context, int64) ([]entity.ConversationSummary, error)
 }
+
+type ConversationMemberReader interface {
+	MemberIDs(context.Context, int64) ([]int64, error)
+}

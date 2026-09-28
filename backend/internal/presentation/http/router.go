@@ -21,6 +21,10 @@ func NewRouter(register handler.RegisterUseCase, login handler.LoginUseCase, ref
 	return r, r.Group("/api", middleware.Authenticate(tokens))
 }
 
+func RegisterWebSocketRoute(engine *gin.Engine, handle gin.HandlerFunc) {
+	engine.GET("/ws", handle)
+}
+
 // ProtectedHandlers contains every authenticated REST operation exposed by
 // the application. Keeping route registration together lets contract tests
 // compare the real Gin route table with the OpenAPI document.

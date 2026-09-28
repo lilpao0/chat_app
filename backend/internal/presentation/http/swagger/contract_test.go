@@ -18,6 +18,7 @@ func TestOpenAPIRoutesMatchGinRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine, protected := presentation.NewRouter(nil, nil, nil, nil)
 	noop := func(c *gin.Context) { c.Status(http.StatusNoContent) }
+	presentation.RegisterWebSocketRoute(engine, noop)
 	presentation.RegisterProtectedRoutes(protected, presentation.ProtectedHandlers{
 		SearchUsers: noop, OpenDirect: noop, ListConversations: noop,
 		SendMessage: noop, MessageHistory: noop, MarkRead: noop,

@@ -13,7 +13,7 @@ Build one Go server that can demonstrate this flow without waiting for a Flutter
 3. List their shared, pre-created 1–1 conversation.
 4. Send text messages and retrieve paginated history.
 5. Show unread counts and mark messages as read through a displayed message.
-6. Receive new-message events through authenticated WebSocket connections.
+6. Send messages/read markers and receive acknowledgements/new-message events through authenticated WebSocket connections.
 7. Reconnect and retrieve missed messages through REST.
 8. Reject access from a separate non-member test user C.
 
@@ -29,7 +29,7 @@ Keep the agreed stack: Go, Gin, PostgreSQL, `database/sql`, bcrypt, JWT, and Web
 | Two seeded demo users plus user search and direct 1-1 chat opening (U11) | Group chat |
 | Conversation list, last message, unread count | Recipient read-receipt ticks, presence, and typing indicators |
 | Text sending, history pagination, marking read | Media, uploads, message editing/deletion, and reactions |
-| WebSocket notifications and REST catch-up | Guaranteed event delivery, a distributed hub, and exactly-once sends |
+| Bidirectional WebSocket commands, durable keyed retries and REST catch-up | Guaranteed event delivery, a distributed hub, and exactly-once sends |
 | Local setup, migrations, tests, and run instructions | Flutter UI, public deployment, microservices, Redis, and Kafka |
 
 Registration remains available, but a newly registered user has an empty conversation list. Client logout removes its stored token and closes its socket; the current proposal does not revoke the old token on the server. Detailed behavior and proposed additions remain in [CONTRACTS](CONTRACTS.md) and [DECISIONS](DECISIONS.md).
@@ -119,7 +119,7 @@ M1 unlocks a basic server demo. M3 unlocks an auth demo. M6 delivers the REST ch
 
 **Goal:** notify connected members after successful message persistence.
 
-- B30: confirm the client platform and implement authenticated `/ws` upgrade.
+- B30: use the Android/iOS-only transport confirmed by U15 and implement the authenticated `/ws` upgrade.
 - B31: implement connection registration/removal, bounded queues, a single writer per connection, ping/pong/deadlines, expiration, and shutdown cleanup.
 - B32: connect a small publisher interface to the send use case and publish only after commit.
 
@@ -147,7 +147,7 @@ Do not request every decision upfront. Read the relevant DECISIONS entry, explai
 | B05–B07 | Available DB environment, separate development/test DBs, migration tool, and compatible DB driver |
 | B12 | JWT library/configuration and the proposed demo session behavior; no implicit promise of refresh or immediate revocation |
 | B16 | D08–D09: added read marker and ordering invariant; these are proposed additions to the source schema, not already confirmed user requirements |
-| B30 | Flutter mobile only or also Web, and a compatible authentication handshake |
+| B30 | Resolved by U15: Android/iOS only, using the access token in the Bearer handshake header |
 
 Version selections are made and recorded when needed. This plan does not install tools, resolve these choices on the user's behalf, or turn a design proposal into an approved product change.
 

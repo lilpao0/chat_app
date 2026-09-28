@@ -22,7 +22,7 @@ This architecture is a project convention, not a mandatory Go directory layout. 
 | `internal/domain/repository` | What data operations do use cases need? | Small user/conversation/message interfaces; plain input/result types when needed | DB connections, SQL statements, `sql.Tx`, `sql.Rows` |
 | `internal/domain/usecase` | What rules govern a user action? | Registration, login, conversation listing, message reading/sending, marking read | JSON parsing, HTTP responses, SQL, opening DB connections |
 | `internal/presentation/http` | How does HTTP become a use case call? | Router, middleware, handlers, request/response DTOs | Conversation authorization decisions, password hashing, DB queries |
-| `internal/presentation/websocket` | How are connections managed and events sent over WebSocket? | Handshake, connection management/hub, JSON event delivery | Persisting messages directly or bypassing use cases based on client-provided IDs |
+| `internal/presentation/websocket` | How are connections managed and events sent over WebSocket? | Handshake, bounded command dispatch, acknowledgements, connection management/hub, JSON event delivery | Persisting messages directly or bypassing use cases based on client-provided IDs |
 | `internal/data/repository` | How are persistence contracts implemented in PostgreSQL? | SQL, Scan, transactions, DB-to-application error mapping | HTTP responses, handler dependencies |
 | `internal/data/database` | How are DB connections opened and managed? | Pool initialization, connectivity checks, resource cleanup | Message-sending or login rules |
 | `internal/data/auth` | How are passwords hashed/checked and tokens signed/verified? | bcrypt and JWT adapters | Deciding conversation membership |
@@ -55,7 +55,7 @@ The domain layer must not import presentation or data. Entities must not import 
 Flutter / Postman
        |
        v
-HTTP middleware + handler
+HTTP middleware/handler or authenticated WS command worker
        |
        v
 Use case
@@ -87,19 +87,19 @@ backend/
     presentation/
       http/
         handler/health.go
-        middleware/                 # future
-        router.go                   # future
-      websocket/                    # future
+        middleware/
+        router.go
+      websocket/
     domain/
-      entity/                       # future: User, Conversation, Message
-      repository/                   # future: repository interfaces
-      usecase/                      # future: auth, conversation, message
+      entity/                       # User, Conversation, Message
+      repository/                   # repository interfaces
+      usecase/                      # auth, conversation, message
     data/
       database/
         postgres.go
         legacy_migrations/          # preserved historical SQL; do not apply
-      repository/                   # future: PostgreSQL implementations
-      auth/                         # future: bcrypt and JWT adapters
+      repository/                   # PostgreSQL implementations
+      auth/                         # bcrypt and JWT adapters
   migrations/                       # active SQL migrations
   docs/
 ```
@@ -121,7 +121,7 @@ Contracts across boundaries use ordinary Go values, domain entities, plain input
 
 `main.go` is the **composition root**: the place that knows how to assemble the application. It reads config, opens the DB, creates repositories and auth adapters, constructs use cases with those dependencies, builds handlers/the hub, registers routes, and runs the server. Manage server/hub lifecycles here or in nearby startup helpers. Use constructors directly; do not add a dependency injection framework or service locator.
 
-Before the realtime milestone, implement only message persistence and responses. Add the publisher contract and wire the hub when working on WebSocket; do not build a general event system in advance.
+The implemented publisher adapter resolves authoritative members and enqueues events in the hub after commit. A separate sequential command worker invokes use cases while reader, writer, heartbeat and supervisor manage I/O; session contexts cancel pending work on disconnect, expiry or shutdown.
 
 ## 6. Entities, DTOs, and database mapping
 
@@ -160,7 +160,7 @@ Authenticate -> check membership -> atomic persistence -> COMMIT
 
 Best effort means the MVP attempts realtime delivery but does not guarantee every event arrives. The server can stop after commit and before publication. The database is authoritative; clients reload history when reconnecting. Do not automatically add Kafka, Redis, or an outbox in this small item.
 
-REST sends messages in the MVP; WebSocket delivers events. Connection authentication, event format, and reconnect behavior are defined in [CONTRACTS.md](CONTRACTS.md) and [DECISIONS.md](DECISIONS.md).
+REST and WebSocket invoke the same send/read use cases. Socket commands require a canonical UUID request ID; REST send accepts it optionally. PostgreSQL enforces sender-scoped uniqueness and the send use case publishes only newly inserted messages. Acknowledgements confirm persistence, not recipient delivery. Connection authentication, event format, and reconnect behavior are defined in [CONTRACTS.md](CONTRACTS.md) and [DECISIONS.md](DECISIONS.md).
 
 ## 8. Transactions, context, and errors
 

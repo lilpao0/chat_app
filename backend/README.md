@@ -6,7 +6,7 @@ Follow the [MVP implementation plan](docs/MVP_PLAN.md) for the eight milestones 
 
 Read [docs/AGENTS.md](docs/AGENTS.md) and current decisions first. The user authorizes continuation until a decision is needed; retain small steps, verification and **Vietnamese** explanations. Documentation is written in English.
 
-The Go module is `github.com/lilpao0/chat_app/backend`. Auth and REST chat endpoints are implemented through B29, with user discovery/direct chat added under X01-X03. Startup requires `DATABASE_URL` and `JWT_SECRET`. B30 awaits the mobile/Web platform choice for WebSocket.
+The Go module is `github.com/lilpao0/chat_app/backend`. Auth, REST chat, discovery/direct chat, profiles, and Android/iOS realtime delivery are implemented through B34 plus the documented extensions. Startup requires `DATABASE_URL` and `JWT_SECRET`.
 
 ## Local database migrations
 
@@ -23,7 +23,7 @@ Tests always use the isolated `chat_app_test` database and never skip database c
 
 ## Application layers
 
-- `internal/presentation`: HTTP handlers/middleware and future WebSocket delivery.
+- `internal/presentation`: HTTP handlers/middleware and WebSocket delivery.
 - `internal/domain`: entities, repository interfaces, and use cases; no dependencies on presentation or data.
 - `internal/data`: database connection, repository implementations, and auth adapters.
 
@@ -51,7 +51,7 @@ Tokens expire after their configured TTLs. This simple MVP does not rotate or re
 
 ## Demo seed
 
-After applying both migrations, set SEED_A_NAME, SEED_A_EMAIL, SEED_A_PASSWORD, SEED_B_NAME, SEED_B_EMAIL and SEED_B_PASSWORD, then run `go run ./cmd/seed`. DATABASE_URL selects the target. Passwords use the registration policy; the two normalized emails must differ.
+After applying all three migrations, set SEED_A_NAME, SEED_A_EMAIL, SEED_A_PASSWORD, SEED_B_NAME, SEED_B_EMAIL and SEED_B_PASSWORD, then run `go run ./cmd/seed`. DATABASE_URL selects the target. Passwords use the registration policy; the two normalized emails must differ.
 
 Repeat runs reuse existing accounts without changing names/passwords and reuse the exact pair's conversation. User-driven direct chat opening uses the same pair lookup. If an email already exists, its existing password still applies, regardless of the supplied seed password. Seeding is never automatic. Verification created fixtures only in private chat_app_test schemas, not development accounts.
 
@@ -66,6 +66,49 @@ Repeat runs reuse existing accounts without changing names/passwords and reuse t
 | GET /api/conversations/:id/messages | Optional limit (1-100), before_id or after_id; messages and cursors |
 | POST /api/conversations/:id/read | JSON last_read_message_id; returns effective read position |
 
-Initial/before history is descending by ID; after history is ascending. The client marks only through its last displayed message. Older requests cannot regress the marker; unseen newer messages stay unread. Non-member/missing conversations return 404. Send retries may duplicate messages. See [REST chat verification](docs/CHAT_PROGRESS.md). WebSocket remains unfinished.
+Initial/before history is descending by ID; after history is ascending. The client marks only through its last displayed message. Older requests cannot regress the marker; unseen newer messages stay unread. Non-member/missing conversations return 404. Send retries may duplicate messages. See [REST chat verification](docs/CHAT_PROGRESS.md).
+
+## Realtime WebSocket
+
+Flutter Android/iOS supports bidirectional `send_message` and `mark_read` commands, correlated acknowledgements/errors and committed `new_message` events. Apply migration `000003_message_request_id` before starting the updated API. REST mutations remain compatible; see [protocol and retry rules](docs/WEBSOCKET_PLAN.md).
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+
+final socket = await WebSocket.connect(
+  'ws://10.0.2.2:8080/ws',
+  headers: {'Authorization': 'Bearer $accessToken'},
+);
+
+socket.listen((raw) {
+  final event = jsonDecode(raw as String);
+  if (event['type'] == 'new_message' || event['type'] == 'message_sent') {
+    // Deduplicate and store by event['data']['id'].
+  }
+});
+
+// Generate and persist one canonical lowercase UUID per logical send.
+// Reuse it after timeout/reconnect; never generate a new ID for a retry.
+final requestId = pendingMessageRequestId;
+socket.add(jsonEncode({
+  'type': 'send_message', 'request_id': requestId,
+  'data': {'conversation_id': conversationId, 'content': 'Hello'},
+}));
+socket.add(jsonEncode({
+  'type': 'mark_read', 'request_id': readRequestId,
+  'data': {'conversation_id': conversationId, 'last_read_message_id': messageId},
+}));
+```
+
+Use the machine's reachable LAN address instead of `10.0.2.2` on a physical Android/iOS device. For a command-line smoke test with `wscat` already installed:
+
+```powershell
+wscat -c ws://localhost:8080/ws -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+The hub is in-memory and serves one API process. Live delivery is best effort; it has no replay or exactly-once guarantee. Access-token expiry closes the socket, binary input closes with 1003, oversized messages with 1009, queue/rate abuse with 1008, and shutdown uses code 1001 where practical.
+
+On reconnect, establish the socket and buffer events first. Fetch every REST history page using `after_id` from the last completed REST synchronization checkpoint, merge by message ID, then merge buffered events. Never advance this checkpoint solely from live-event IDs. Retry unresolved sends with the original request ID; REST fallback accepts the same optional `request_id`. Acknowledgement confirms persistence, not recipient delivery. `read_updated` is only an acknowledgement, not a broadcast read receipt.
 
 To start a chat, authenticate, search `GET /api/users?q=binh`, then send `POST /api/conversations/direct` with `{"user_id":2}`. The response contains the conversation ID for the existing message/history/read endpoints. Repeated or simultaneous requests for the same unordered pair reuse one conversation through an application transaction lock. Manual SQL that bypasses this path can still create duplicates because the schema has no unordered-pair uniqueness constraint. See [discovery verification](docs/DISCOVERY_PROGRESS.md).
