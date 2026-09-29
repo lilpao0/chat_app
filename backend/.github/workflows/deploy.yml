@@ -1,0 +1,48 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+      - backend/Bao
+
+env:
+  PROJECT_ID: vinai-lab
+  REGION: asia-southeast1
+  SERVICE_NAME: chat-api
+  ARTIFACT_REPO: chat-repo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        run: |
+          IMAGE_TAG=$(date +%Y%m%d-%H%M%S)
+          docker build -t asia-southeast1-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPO/$SERVICE_NAME:$IMAGE_TAG .
+          docker push asia-southeast1-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPO/$SERVICE_NAME:$IMAGE_TAG
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy $SERVICE_NAME \
+            --image asia-southeast1-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPO/$SERVICE_NAME:${{ env.IMAGE_TAG }} \
+            --region $REGION \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-secrets=JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest

@@ -1,4 +1,4 @@
-filename: cloudbuild.yaml
+filename: backend/cloudbuild.yaml
 name: chat-api-deploy
 github:
   owner: lilpao0
