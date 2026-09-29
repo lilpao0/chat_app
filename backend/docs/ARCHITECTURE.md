@@ -1,8 +1,6 @@
 # Clean Architecture for the Go Backend
 
-This document describes the **intended** chat MVP server architecture, following the [six-week roadmap](../../ke-hoach-6-tuan-flutter-golang-chat-app-1.md) and the existing directories. It guides future implementation; a feature appearing in a diagram does not mean it has been implemented or verified.
-
-When these documents were prepared on 2026-09-18, the backend had `cmd/api/main.go` with an empty `main`, skeleton directories, and a README; there was no `go.mod`. Do not create the entire tree below in one turn. **Implement only one small, verifiable piece per turn, explain it in Vietnamese, then stop for the user to read.** Read [AGENTS.md](AGENTS.md) and [WORKFLOW.md](WORKFLOW.md) before editing code; select work from [BACKLOG.md](BACKLOG.md).
+This document describes the implemented chat MVP server architecture, following the [six-week roadmap](../../ke-hoach-6-tuan-flutter-golang-chat-app-1.md) and the current code. Read [AGENTS.md](AGENTS.md) and [WORKFLOW.md](WORKFLOW.md) before editing; current verification and remaining work live in [BACKLOG.md](BACKLOG.md).
 
 The user selected three top-level application layers on 2026-09-21: `presentation`, `domain`, and `data`. Configuration belongs to startup under `cmd/api/config`; active SQL migrations stay at `backend/migrations`. This supersedes the previous flat layer layout.
 
@@ -97,7 +95,6 @@ backend/
     data/
       database/
         postgres.go
-        legacy_migrations/          # preserved historical SQL; do not apply
       repository/                   # PostgreSQL implementations
       auth/                         # bcrypt and JWT adapters
   migrations/                       # active SQL migrations
@@ -140,7 +137,7 @@ A conversation list often needs the other participant, the last message, and unr
 
 ## 7. Example: sending a message
 
-This describes responsibilities, not implementation code. Explain this flow to the user in Vietnamese when implementing it:
+This describes the implemented responsibilities:
 
 1. Middleware verifies the token and identifies the user. `sender_id` must come from that verified identity, not from a client-supplied body value.
 2. The handler reads the conversation ID and JSON, handles parsing errors, and calls the use case with the request context.

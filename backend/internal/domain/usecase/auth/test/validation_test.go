@@ -166,10 +166,10 @@ func TestValidateInput_Email(t *testing.T) {
 
 func TestValidateInput_Password(t *testing.T) {
 	tests := []struct {
-		name      string
-		password  string
-		wantErr   bool
-		errField  string
+		name     string
+		password string
+		wantErr  bool
+		errField string
 	}{
 		// Valid cases
 		{"valid min length (8)", "password", false, ""},
