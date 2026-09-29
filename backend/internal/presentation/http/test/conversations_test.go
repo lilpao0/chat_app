@@ -64,7 +64,7 @@ func TestConversationList(t *testing.T) {
 	if c.Code != 200 || c.Body.String() != "[]" {
 		t.Fatal("outsider saw conversation")
 	}
-	// Fixture writes use the same lock-before-ID rule as the future send repository.
+	// Fixture writes use the same lock-before-ID rule as the production send repository.
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		t.Fatal(err)

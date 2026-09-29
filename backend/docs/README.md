@@ -2,7 +2,7 @@
 
 A 1–1 chat backend for Flutter: registration/login, conversation lists, message history, text messages, realtime delivery, and unread state.
 
-**Current state (2026-09-28):** B01-B34, X01-X08, and P01-P14 are DONE. Auth, REST chat, user discovery/direct chats, profiles, and authenticated Android/iOS bidirectional socket commands and `new_message` delivery are implemented and tested with PostgreSQL. Startup requires DATABASE_URL and JWT_SECRET; apply all three current migrations. See [BACKLOG](BACKLOG.md) for the latest handoff.
+**Current state (2026-09-29):** B01-B34, X01-X08, P01-P14 and WS2-01-WS2-08 are DONE. Auth, REST chat, user discovery/direct chats, profiles, and authenticated Android/iOS bidirectional socket commands and `new_message` delivery are implemented and tested with PostgreSQL. Startup requires DATABASE_URL and JWT_SECRET; apply all three current migrations. See [BACKLOG](BACKLOG.md) for the latest handoff.
 
 ## Where to start
 
@@ -12,7 +12,6 @@ A 1–1 chat backend for Flutter: registration/login, conversation lists, messag
 | [WORKFLOW](WORKFLOW.md) | Workflow for one turn and the handoff template |
 | [MVP_PLAN](MVP_PLAN.md) | Eight implementation milestones, observable outcomes, acceptance criteria, and progress tracking |
 | [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md) | Implemented bidirectional protocol, retry rules and WS2 implementation sequence |
-| [WEBSOCKET_VERIFICATION.md](WEBSOCKET_VERIFICATION.md) | Full-suite verification, runtime/file map and operational prerequisites |
 | [ARCHITECTURE](ARCHITECTURE.md) | Clean Architecture in Go, structure, and dependency direction |
 | [DECISIONS](DECISIONS.md) | Source requirements, proposed additions, and open questions |
 | [CONTRACTS](CONTRACTS.md) | Intended API, data, authentication, and WebSocket behavior |
@@ -43,4 +42,4 @@ From `backend/`, run `go test ./...` and `go vet ./...`. PostgreSQL integration 
 
 Bidirectional socket commands, correlated acknowledgements and durable retries are implemented. See [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md) for the protocol and [BACKLOG](BACKLOG.md) for verification. REST compatibility and history remain available.
 
-Product source: [Six-week Flutter + Golang roadmap](../../ke-hoach-6-tuan-flutter-golang-chat-app-1.md). Implementation additions are listed separately in DECISIONS; do not rewrite the source document to make proposals appear to be confirmed requirements.
+Product source: [Six-week Flutter + Golang roadmap](../../ke-hoach-6-tuan-flutter-golang-chat-app-1.md). Implementation additions are listed separately in DECISIONS; current verification and remaining work live in BACKLOG.

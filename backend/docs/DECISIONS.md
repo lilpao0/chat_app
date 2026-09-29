@@ -1,6 +1,6 @@
 # Scope, Decisions, and Assumptions
 
-## Current decisions - 2026-09-28
+## Current decisions - 2026-09-29
 
 - **U16 (confirmed, 2026-09-28):** migrate chat to bidirectional WebSocket following the user's request. The subsequent user request authorized implementation and removal of obsolete notification-only code. [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md) supersedes the earlier REST-only sending restriction. Implemented scope includes socket send/read commands, correlated acknowledgements/errors, durable send idempotency, and temporary retention of REST mutations for compatibility. Android/iOS scope and server-authorized membership remain unchanged.
 
@@ -37,7 +37,7 @@ Created: 2026-09-18. This document separates actual requirements from design cho
 | U14 | Add authenticated private/public profile APIs with limited editable fields, private DOB/phone, a fixed avatar, E.164 phone storage without OTP, and defer deletion | User answers and confirmation on 2026-09-28; contract recorded in CONTRACTS |
 | U15 | Support realtime clients on Flutter Android/iOS only and authenticate `/ws` through the Bearer handshake header | Direct user confirmation on 2026-09-28 |
 
-U01 does not prohibit future implementation turns when the user explicitly assigns an item. U02 remains in effect until the user changes the pace.
+U01 does not prohibit future implementation turns when the user explicitly assigns an item. U09 supersedes U02's earlier stopping pace.
 
 ## 2. Inherited product scope
 
@@ -104,7 +104,7 @@ Record its ID, date, status, problem, choice, reason, API/schema impact, and con
 
 ## I03 ? Three application layers (2026-09-21)
 
-Confirmed by the user's explicit request: group backend application code into `presentation`, `domain`, and `data` for readability. Domain contains entities, repository interfaces, and use cases. Data contains concrete persistence/auth adapters. Presentation contains HTTP and WebSocket adapters. `cmd/api` wires the layers and owns configuration under `cmd/api/config`. Active migrations remain in `backend/migrations`; old `internal/migrate` SQL is preserved under `data/database/legacy_migrations` and must not be applied. This replaces the earlier flat package layout without changing APIs or database behavior.
+Confirmed by the user's explicit request: group backend application code into `presentation`, `domain`, and `data` for readability. Domain contains entities, repository interfaces, and use cases. Data contains concrete persistence/auth adapters. Presentation contains HTTP and WebSocket adapters. `cmd/api` wires the layers and owns configuration under `cmd/api/config`. Active migrations remain in `backend/migrations`. This replaces the earlier flat package layout without changing APIs or database behavior.
 
 ## I04 - Password adapter (2026-09-21)
 

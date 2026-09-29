@@ -30,7 +30,7 @@ var (
 
 	// Email errors
 	ErrEmailRequired = ValidationError{Field: "email", Message: "Email is required"}
-	ErrEmailInvalid = ValidationError{Field: "email", Message: "Email is invalid"}
+	ErrEmailInvalid  = ValidationError{Field: "email", Message: "Email is invalid"}
 
 	// Password errors
 	ErrPasswordRequired = ValidationError{Field: "password", Message: "Password is required"}

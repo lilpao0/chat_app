@@ -27,7 +27,7 @@ Tests always use the isolated `chat_app_test` database and never skip database c
 - `internal/domain`: entities, repository interfaces, and use cases; no dependencies on presentation or data.
 - `internal/data`: database connection, repository implementations, and auth adapters.
 
-`cmd/api/main.go` wires the layers; startup configuration lives in `cmd/api/config`. Only `migrations/` is the active migration source. Historical SQL is preserved under `internal/data/database/legacy_migrations` and must not be applied.
+`cmd/api/main.go` wires the layers; startup configuration lives in `cmd/api/config`. Only `migrations/` is the active migration source.
 
 ## Repository checks
 
@@ -47,7 +47,7 @@ Interactive Swagger documentation is available at `http://localhost:8080/swagger
 
 Contract tests compare the OpenAPI method/path set against Gin's production route registration and verify public/protected authentication declarations plus registration validation codes. Adding or removing an API route or auth validation error without updating OpenAPI causes the test suite to fail.
 
-Tokens expire after their configured TTLs. This simple MVP does not rotate or revoke refresh tokens; logout removes tokens from the client only. See [the auth handoff](docs/AUTH_PROGRESS.md) for verification.
+Tokens expire after their configured TTLs. This simple MVP does not rotate or revoke refresh tokens; logout removes tokens from the client only. The verified behavior and limitations are summarized in [BACKLOG](docs/BACKLOG.md).
 
 ## Demo seed
 
@@ -62,11 +62,11 @@ Repeat runs reuse existing accounts without changing names/passwords and reuse t
 | GET /api/users | q: name substring or exact email; optional limit (1-50), after_id; returns public summaries without emails |
 | POST /api/conversations/direct | JSON user_id; returns a new conversation with 201 or existing one with 200 |
 | GET /api/conversations | Actor's conversations, counterpart, last message and unread count |
-| POST /api/conversations/:id/messages | JSON content; returns committed message |
+| POST /api/conversations/:id/messages | JSON content and optional request_id; returns the committed/original retry result |
 | GET /api/conversations/:id/messages | Optional limit (1-100), before_id or after_id; messages and cursors |
 | POST /api/conversations/:id/read | JSON last_read_message_id; returns effective read position |
 
-Initial/before history is descending by ID; after history is ascending. The client marks only through its last displayed message. Older requests cannot regress the marker; unseen newer messages stay unread. Non-member/missing conversations return 404. Send retries may duplicate messages. See [REST chat verification](docs/CHAT_PROGRESS.md).
+Initial/before history is descending by ID; after history is ascending. The client marks only through its last displayed message. Older requests cannot regress the marker; unseen newer messages stay unread. Non-member/missing conversations return 404. Keyed retries are durable; requests without `request_id` retain legacy duplicate-on-retry behavior. See [CONTRACTS](docs/CONTRACTS.md).
 
 ## Realtime WebSocket
 
@@ -109,6 +109,8 @@ wscat -c ws://localhost:8080/ws -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 
 The hub is in-memory and serves one API process. Live delivery is best effort; it has no replay or exactly-once guarantee. Access-token expiry closes the socket, binary input closes with 1003, oversized messages with 1009, queue/rate abuse with 1008, and shutdown uses code 1001 where practical.
 
+The checked-in Cloud Build/Cloud Run configuration builds from the repository's `backend/` context and caps the service at one instance to match this hub limitation. Do not raise the instance count until realtime fan-out uses a shared broadcast adapter.
+
 On reconnect, establish the socket and buffer events first. Fetch every REST history page using `after_id` from the last completed REST synchronization checkpoint, merge by message ID, then merge buffered events. Never advance this checkpoint solely from live-event IDs. Retry unresolved sends with the original request ID; REST fallback accepts the same optional `request_id`. Acknowledgement confirms persistence, not recipient delivery. `read_updated` is only an acknowledgement, not a broadcast read receipt.
 
-To start a chat, authenticate, search `GET /api/users?q=binh`, then send `POST /api/conversations/direct` with `{"user_id":2}`. The response contains the conversation ID for the existing message/history/read endpoints. Repeated or simultaneous requests for the same unordered pair reuse one conversation through an application transaction lock. Manual SQL that bypasses this path can still create duplicates because the schema has no unordered-pair uniqueness constraint. See [discovery verification](docs/DISCOVERY_PROGRESS.md).
+To start a chat, authenticate, search `GET /api/users?q=binh`, then send `POST /api/conversations/direct` with `{"user_id":2}`. The response contains the conversation ID for the existing message/history/read endpoints. Repeated or simultaneous requests for the same unordered pair reuse one conversation through an application transaction lock. Manual SQL that bypasses this path can still create duplicates because the schema has no unordered-pair uniqueness constraint.

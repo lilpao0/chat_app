@@ -29,7 +29,7 @@ Keep the agreed stack: Go, Gin, PostgreSQL, `database/sql`, bcrypt, JWT, and Web
 | Two seeded demo users plus user search and direct 1-1 chat opening (U11) | Group chat |
 | Conversation list, last message, unread count | Recipient read-receipt ticks, presence, and typing indicators |
 | Text sending, history pagination, marking read | Media, uploads, message editing/deletion, and reactions |
-| Bidirectional WebSocket commands, durable keyed retries and REST catch-up | Guaranteed event delivery, a distributed hub, and exactly-once sends |
+| Bidirectional WebSocket commands, durable keyed persistence retries and REST catch-up | Guaranteed event delivery, a distributed hub, and exactly-once network delivery |
 | Local setup, migrations, tests, and run instructions | Flutter UI, public deployment, microservices, Redis, and Kafka |
 
 Registration remains available, but a newly registered user has an empty conversation list. Client logout removes its stored token and closes its socket; the current proposal does not revoke the old token on the server. Detailed behavior and proposed additions remain in [CONTRACTS](CONTRACTS.md) and [DECISIONS](DECISIONS.md).
@@ -117,13 +117,13 @@ M1 unlocks a basic server demo. M3 unlocks an auth demo. M6 delivers the REST ch
 
 ### M7 — Realtime delivery: B30–B32
 
-**Goal:** notify connected members after successful message persistence.
+**Goal:** let authenticated mobile clients send/read through WebSocket and notify connected members after successful message persistence.
 
 - B30: use the Android/iOS-only transport confirmed by U15 and implement the authenticated `/ws` upgrade.
-- B31: implement connection registration/removal, bounded queues, a single writer per connection, ping/pong/deadlines, expiration, and shutdown cleanup.
-- B32: connect a small publisher interface to the send use case and publish only after commit.
+- B31: implement connection registration/removal, bounded queues, command dispatch, a single application writer, ping/pong/deadlines, expiration, and shutdown cleanup.
+- B32: connect a small publisher interface to the shared send use case and publish only after a new commit.
 
-**Exit evidence:** A's REST send appears as an event on authorized connections; C receives no private events; rollback emits nothing; a failed publication does not undo a saved message. Check disconnects, slow clients, token expiration, and shutdown. Run the race detector when supported and record any environment limitation.
+**Exit evidence:** A's keyed socket send is acknowledged and appears as an event on authorized connections; an identical retry returns the same message ID without republishing; C receives no private events; rollback emits nothing; a failed publication does not undo a saved message. Check disconnects, slow clients, token expiration, and shutdown. Run the race detector when supported and record any environment limitation.
 
 B31 contains several concurrency concepts. Split it into separately verifiable sub-items in BACKLOG before implementation if it cannot be explained comfortably in one small turn. Apply the same rule to any other oversized item; never treat a milestone as permission to batch its work.
 
@@ -160,7 +160,7 @@ Run against isolated test/demo data with a REST client and two WebSocket clients
 | 1 | Follow documented setup, migrations, seed, and startup | Server starts; health responds; seed can be repeated without duplicate demo data |
 | 2 | Register a separate test user and log in as A/B | Auth responses match the contract; the unrelated user has no conversations |
 | 3 | Request A/B's conversation lists | Both see the same shared conversation with correct participant and last-message fields |
-| 4 | Open A/B's authenticated sockets; A sends text through REST | A receives a committed-message response; B receives an event with the same message ID; the sender's event is not treated as a second message |
+| 4 | Open A/B's authenticated sockets; A sends keyed text through WebSocket | A receives `message_sent`; A/B receive `new_message` with the same message ID; retrying the key does not add or publish a second message |
 | 5 | Fetch history and inspect unread state | Message content/order match persistence; B's unread count increases, while A's own message is not unread for A |
 | 6 | B marks read through a displayed message, then replies | B's marker/count update correctly; A can receive/fetch the reply |
 | 7 | Exercise an older read request while a newer message arrives | Marker never regresses; the newer unseen message remains unread |
@@ -176,7 +176,7 @@ Some server guarantees require focused tests rather than manual clicking: rollba
 
 **BACKLOG remains the single editable source of task status.** This plan owns milestone grouping and exit criteria, not a second set of completion checkboxes.
 
-At the creation of this plan, B01–B34 are all TODO and the next implementation candidate is B01. This sentence is a dated starting snapshot; read BACKLOG for current progress in later sessions.
+All original B01-B34 milestones are complete. BACKLOG is the current source of verified status and future work.
 
 - A milestone is complete only when its mapped items, necessary sub-items/fixes, and exit evidence are complete.
 - Report progress as completed top-level items out of 34, with the active milestone and item. This is a count of completed items, not a percentage of total effort; items vary in size.
@@ -186,14 +186,6 @@ At the creation of this plan, B01–B34 are all TODO and the next implementation
 - Do not check off future work because its interface, diagram, or documentation exists. No server run, build, or feature test was performed during the original creation of this plan; later verification is recorded in BACKLOG.
 - There is no fixed calendar deadline here. Schedule by these dependencies and the user's reading pace; do not assume the original full-stack six-week roadmap is a backend delivery commitment.
 
-## 8. Starting and resuming work
+## 8. Resuming work
 
-First implementation request, when the user is ready:
-
-> Read backend/docs/AGENTS.md, WORKFLOW.md, MVP_PLAN.md, and the relevant BACKLOG.md entry. Implement only B01. Explain the goal and code changes in Vietnamese, run appropriate checks, update the backlog handoff, and stop before B02.
-
-For subsequent turns:
-
-> Read the backend rules and the latest BACKLOG handoff. Identify the next eligible small item within MVP_PLAN.md. Complete only that item, explain it in Vietnamese, record verification and remaining work, then stop.
-
-If a prior item is incomplete, finish or clarify that item before selecting new dependent work. This plan does not authorize automatic implementation, commits, deployment, or expanding MVP scope.
+Read AGENTS, WORKFLOW and the latest BACKLOG entry. Complete only the scope authorized by the user's latest request, explain changes in Vietnamese, run proportionate checks, and record remaining work. This completed milestone plan does not authorize deployment or expanding product scope.

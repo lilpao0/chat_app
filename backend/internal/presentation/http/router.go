@@ -8,7 +8,7 @@ import (
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/swagger"
 )
 
-// NewRouter returns the authenticated group for future chat route registration.
+// NewRouter returns the authenticated group used by the protected application routes.
 // Public auth and health endpoints are intentionally outside that group.
 func NewRouter(register handler.RegisterUseCase, login handler.LoginUseCase, refresh handler.RefreshUseCase, tokens middleware.TokenVerifier) (*gin.Engine, *gin.RouterGroup) {
 	r := gin.New()

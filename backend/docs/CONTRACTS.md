@@ -321,14 +321,14 @@ The API and seed commands load optional `.env` values from the current working d
 | `WS_COMMAND_TIMEOUT` | Default 5s; duration of at least 1s | WS2-04 |
 | `WS_COMMAND_RATE` | Default 10 commands/second; integer 1-10,000 per connection | WS2-04 |
 | `WS_COMMAND_BURST` | Default 20; integer 1-10,000; exhausted bucket closes with 1008 (best-effort rate_limited error) | WS2-04 |
-| `WS_SEND_QUEUE_CAPACITY` | Default 64; integer 1-10,000; bounded outbound events per connection | W03/B31 |
-| `WS_MAX_MESSAGE_BYTES` | Default 16,384; integer 1-1,048,576; entire inbound WebSocket message limit | W03/B31 |
-| `WS_WRITE_TIMEOUT` | Default 10s; duration of at least 1s | W03/B31 |
-| `WS_PONG_TIMEOUT` | Default 60s; duration of at least 1s | W03/B31 |
-| `WS_PING_INTERVAL` | Default 25s; duration of at least 1s and shorter than `WS_PONG_TIMEOUT` | W03/B31 |
-| `WS_SHUTDOWN_TIMEOUT` | Default 10s; duration of at least 1s | W03/B31 |
+| `WS_SEND_QUEUE_CAPACITY` | Default 64; integer 1-10,000; bounded outbound events per connection | WS2-04 |
+| `WS_MAX_MESSAGE_BYTES` | Default 16,384; integer 1-1,048,576; entire inbound WebSocket message limit | WS2-04 |
+| `WS_WRITE_TIMEOUT` | Default 10s; duration of at least 1s | WS2-04 |
+| `WS_PONG_TIMEOUT` | Default 60s; duration of at least 1s | WS2-04 |
+| `WS_PING_INTERVAL` | Default 25s; duration of at least 1s and shorter than `WS_PONG_TIMEOUT` | WS2-04 |
+| `WS_SHUTDOWN_TIMEOUT` | Default 10s; duration of at least 1s | WS2-04 |
 
-Example files contain placeholders for secrets/passwords only. Select, explain in Vietnamese, and document HTTP read/write/idle timeouts and the shutdown timeout in B04. WS receives its own deadlines in B31 so short-request timeouts are not mistakenly applied to long-lived connections.
+Example files contain placeholders for secrets/passwords only. HTTP and WS use separate configured deadlines so short-request timeouts are not mistakenly applied to long-lived connections.
 
 ## 8. Required scenarios to verify incrementally
 

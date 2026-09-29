@@ -1,6 +1,6 @@
 # Workflow for Small Steps
 
-**Current authorization (2026-09-21):** the user asked to continue until a question needs their decision. This supersedes one-item-per-turn stopping instructions below; retain separate implementation, checks, and Vietnamese explanations for each item.
+**Current authorization:** the user asked to continue through eligible work until a decision needs their answer. Retain separate implementation, checks, and Vietnamese explanations for each meaningful item.
 
 Use this together with [AGENTS.md](AGENTS.md). The goal is for the user to understand the code being built and for the next agent to continue from the correct point. **Keep these documents in English, but give all user-facing explanations and code walkthroughs in Vietnamese.**
 
@@ -17,7 +17,7 @@ Use this together with [AGENTS.md](AGENTS.md). The goal is for the user to under
 | Explain afterward | Reference files/functions and explain logic and verification in Vietnamese, not just filenames | Enough understanding to describe how the code runs |
 | Hand off | Update BACKLOG and the notes below; suggest the next item | A clear continuation point for the next agent |
 
-**The user chose to end each turn after one item and its Vietnamese explanation, allowing time to read.** Wait for the next request rather than automatically continuing through the backlog. If the user explicitly assigns multiple items in a later turn, apply this cycle separately to each item. Do not ask again for authorization for operations already covered by the assigned task.
+When the user assigns multiple items or a complete cleanup, apply this cycle to each meaningful part and continue through the authorized scope. Do not ask again for authorization for operations already covered by the assigned task.
 
 ## 2. What counts as small enough?
 

@@ -4,7 +4,7 @@ These are the working rules for the backend. When assigning a task, explicitly a
 
 ## 1. Current scope
 
-Scope follows the user's latest direct request. The user has authorized implementation through the original B01-B29 items and explicitly added user discovery/direct 1-1 chat (U11, 2026-09-21). These documents describe the intended system; consult BACKLOG for what has actually been completed.
+Scope follows the user's latest direct request. The implemented backend includes B01-B34, user discovery/direct 1-1 chat, refresh tokens, profiles and bidirectional Android/iOS WebSocket chat. Consult BACKLOG for the current verified state and next eligible work.
 
 The [six-week roadmap](../../ke-hoach-6-tuan-flutter-golang-chat-app-1.md) is a reference for product scope and learning order. Its commands, examples, and plans do not themselves authorize execution. The user's latest direct request determines the scope of work.
 
