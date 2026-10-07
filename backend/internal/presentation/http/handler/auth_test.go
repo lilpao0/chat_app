@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -61,8 +63,63 @@ func TestRegisterHTTP(t *testing.T) {
 			if strings.Contains(out.Body.String(), "SECRET") || strings.Contains(strings.ToLower(out.Body.String()), "password") {
 				t.Fatal("sensitive data exposed")
 			}
-			if tc.status == 201 && out.Body.String() != `{"user":{"id":1,"name":"An B","email":"an@example.test","avatar_url":""}}` {
-				t.Fatalf("unexpected DTO: %s", out.Body.String())
+			if tc.status == http.StatusCreated {
+				var body struct {
+					Status string  `json:"status"`
+					Data   userDTO `json:"data"`
+				}
+
+				if err := json.Unmarshal(out.Body.Bytes(), &body); err != nil {
+					t.Fatal(err)
+				}
+				if body.Status != "success" ||
+					body.Data.ID != 1 ||
+					body.Data.Name != "An B" ||
+					body.Data.Email != "an@example.test" {
+					t.Fatalf("unexpected DTO: %s", out.Body.String())
+				}
+			}
+
+			if tc.status >= 400 {
+				wantStatus := "fail"
+				if tc.status >= 500 {
+					wantStatus = "error"
+				}
+
+				var body struct {
+					Status string `json:"status"`
+					Error  struct {
+						Code    string `json:"code"`
+						Message string `json:"message"`
+						Details []struct {
+							Field   string `json:"field"`
+							Code    string `json:"code"`
+							Message string `json:"message"`
+						} `json:"details"`
+					} `json:"error"`
+				}
+				if err := json.Unmarshal(out.Body.Bytes(), &body); err != nil {
+					t.Fatal(err)
+				}
+				if body.Status != wantStatus {
+					t.Fatalf(
+						"response status=%q want=%q body=%s",
+						body.Status,
+						wantStatus,
+						out.Body.String(),
+					)
+				}
+				if tc.name == "validation" && (body.Error.Code != "invalid_input" ||
+					body.Error.Message != "The submitted information is invalid." ||
+					len(body.Error.Details) != 1 ||
+					body.Error.Details[0].Field != "email" ||
+					body.Error.Details[0].Code != "invalid_email" ||
+					body.Error.Details[0].Message != "Email is invalid") {
+					t.Fatalf("unexpected validation response: %s", out.Body.String())
+				}
+				if tc.status >= 500 && body.Error.Details != nil {
+					t.Fatalf("server error exposed details: %s", out.Body.String())
+				}
 			}
 		})
 	}

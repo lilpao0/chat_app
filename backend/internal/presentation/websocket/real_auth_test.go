@@ -30,7 +30,7 @@ func TestRealTokensCannotBypassHandshake(t *testing.T) {
 	}
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	router.GET("/ws", ws.NewHandler(tokens, ws.NewHub(testLifecycleConfig())).Handle)
+	router.GET("/ws", ws.NewHandler(tokens, ws.NewHub(testLifecycleConfig()), nil, nil).Handle)
 	server := httptest.NewServer(router)
 	defer server.Close()
 	for _, token := range []string{refresh.Value, expired} {

@@ -119,7 +119,7 @@ M1 unlocks a basic server demo. M3 unlocks an auth demo. M6 delivers the REST ch
 
 **Goal:** let authenticated mobile clients send/read through WebSocket and notify connected members after successful message persistence.
 
-- B30: use the Android/iOS-only transport confirmed by U15 and implement the authenticated `/ws` upgrade.
+- B30: original U15 Android/iOS Bearer transport; U17 subsequently adds browser one-use tickets under WEB-01-WEB-05 without changing chat frames.
 - B31: implement connection registration/removal, bounded queues, command dispatch, a single application writer, ping/pong/deadlines, expiration, and shutdown cleanup.
 - B32: connect a small publisher interface to the shared send use case and publish only after a new commit.
 
@@ -147,7 +147,7 @@ Do not request every decision upfront. Read the relevant DECISIONS entry, explai
 | B05–B07 | Available DB environment, separate development/test DBs, migration tool, and compatible DB driver |
 | B12 | JWT library/configuration and the proposed demo session behavior; no implicit promise of refresh or immediate revocation |
 | B16 | D08–D09: added read marker and ordering invariant; these are proposed additions to the source schema, not already confirmed user requirements |
-| B30 | Resolved by U15: Android/iOS only, using the access token in the Bearer handshake header |
+| B30 | Original U15 mobile Bearer transport; U17 extends client scope to Web via exact-origin one-use tickets |
 
 Version selections are made and recorded when needed. This plan does not install tools, resolve these choices on the user's behalf, or turn a design proposal into an approved product change.
 
@@ -158,7 +158,7 @@ Run against isolated test/demo data with a REST client and two WebSocket clients
 | Step | Action | Passing result |
 |---|---|---|
 | 1 | Follow documented setup, migrations, seed, and startup | Server starts; health responds; seed can be repeated without duplicate demo data |
-| 2 | Register a separate test user and log in as A/B | Auth responses match the contract; the unrelated user has no conversations |
+| 2 | Register a separate test user and log in as A/B | Auth responses use the REST `status`/`data` envelope; the unrelated user receives `data: []` for conversations |
 | 3 | Request A/B's conversation lists | Both see the same shared conversation with correct participant and last-message fields |
 | 4 | Open A/B's authenticated sockets; A sends keyed text through WebSocket | A receives `message_sent`; A/B receive `new_message` with the same message ID; retrying the key does not add or publish a second message |
 | 5 | Fetch history and inspect unread state | Message content/order match persistence; B's unread count increases, while A's own message is not unread for A |

@@ -30,6 +30,8 @@ This architecture is a project convention, not a mandatory Go directory layout. 
 
 An adapter connects the application to a particular technology. A PostgreSQL repository is a persistence adapter; bcrypt/JWT are security adapters; the WebSocket hub is an event delivery adapter.
 
+Browser connection tickets live in `internal/presentation/authentication`: a concrete bounded TicketStore adapts middleware-verified identity to browser WS transport. HTTP issuance and WS consumption share one instance wired by `cmd/api/main.go`. This introduces no domain rule or repository: chat membership and persistence still use existing use cases. `cmd/api/config/web.go` validates one origin allowlist shared by CORS, issuance and handshake. Mobile Bearer admission remains unchanged.
+
 ## 3. Package dependencies and runtime flow are different
 
 ### Compile-time dependencies
@@ -130,6 +132,8 @@ The implemented publisher adapter resolves authoritative members and enqueues ev
 | DB mapping | Convert SQL rows/columns into application data | `data/repository` | Handle nullable columns with SQL types, then convert to application Go types |
 
 Handlers convert request DTOs into use case inputs and map results to response DTOs. Repositories read columns with `Scan` and return domain entities or plain query results. SQL objects must not escape the adapter.
+
+REST handlers write through `internal/presentation/http/response`: success responses use `status` plus `data`, paginated responses add `meta.pagination`, 4xx responses use `status: fail`, and 5xx responses use `status: error`. This envelope belongs only to HTTP presentation. Domain/use-case errors and WebSocket frames remain independent of it.
 
 Do not expose internal entities directly as responses just because some fields currently match. Sensitive data such as password hashes must never appear in JSON or logs. Follow [CONTRACTS.md](CONTRACTS.md) for JSON names, exposed fields, and pagination conventions.
 

@@ -21,6 +21,7 @@ import (
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/conversation"
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/message"
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/user"
+	"github.com/lilpao0/chat_app/backend/internal/presentation/authentication"
 	presentation "github.com/lilpao0/chat_app/backend/internal/presentation/http"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/handler"
 	presentationws "github.com/lilpao0/chat_app/backend/internal/presentation/websocket"
@@ -35,6 +36,10 @@ func main() {
 	}
 }
 func run() error {
+	origins, err := config.LoadWebOrigins()
+	if err != nil {
+		return fmt.Errorf("load web config: %w", err)
+	}
 	httpCfg, err := config.LoadHTTPPort()
 	if err != nil {
 		return fmt.Errorf("load HTTP config: %w", err)
@@ -85,7 +90,8 @@ func run() error {
 	register := domainauth.NewRegister(users, passwords)
 	login := domainauth.NewLogin(users, passwords, tokens)
 	refresh := domainauth.NewRefresh(tokens)
-	r, protected := presentation.NewRouter(register, login, refresh, tokens)
+	r, protected := presentation.NewRouter(register, login, refresh, tokens, origins)
+	tickets := authentication.NewTicketStore()
 	commands := &presentationws.Commands{}
 	hub := presentationws.NewHub(presentationws.LifecycleConfig{
 		CommandQueueCapacity: wsCfg.CommandQueueCapacity, CommandTimeout: wsCfg.CommandTimeout, CommandRate: wsCfg.CommandRate, CommandBurst: wsCfg.CommandBurst,
@@ -102,7 +108,7 @@ func run() error {
 			log.Printf("WebSocket shutdown: %v", err)
 		}
 	}()
-	wsHandler := presentationws.NewHandler(tokens, hub)
+	wsHandler := presentationws.NewHandler(tokens, hub, origins, tickets)
 	presentation.RegisterWebSocketRoute(r, wsHandler.Handle)
 	conversations := datarepo.NewPostgresConversationRepository(db)
 	discovery := handler.NewDiscoveryHandler(user.NewSearch(users), conversation.NewOpenDirect(conversations))
@@ -111,6 +117,7 @@ func run() error {
 	commands.Send = send
 	commands.Read = conversation.NewMarkRead(messages)
 	presentation.RegisterProtectedRoutes(protected, presentation.ProtectedHandlers{
+		WSTicket:          handler.NewWSTicketHandler(tickets, origins),
 		SearchUsers:       discovery.Search,
 		GetPrivateProfile: profiles.GetPrivate,
 		GetPublicProfile:  profiles.GetPublic,

@@ -9,17 +9,17 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	domainauth "github.com/lilpao0/chat_app/backend/internal/domain/usecase/auth"
 	presentation "github.com/lilpao0/chat_app/backend/internal/presentation/http"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/swagger"
 )
 
 func TestOpenAPIRoutesMatchGinRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	engine, protected := presentation.NewRouter(nil, nil, nil, nil)
+	engine, protected := presentation.NewRouter(nil, nil, nil, nil, nil)
 	noop := func(c *gin.Context) { c.Status(http.StatusNoContent) }
 	presentation.RegisterWebSocketRoute(engine, noop)
 	presentation.RegisterProtectedRoutes(protected, presentation.ProtectedHandlers{
+		WSTicket:    noop,
 		SearchUsers: noop, OpenDirect: noop, ListConversations: noop,
 		SendMessage: noop, MessageHistory: noop, MarkRead: noop,
 		GetPrivateProfile: noop, GetPublicProfile: noop,
@@ -84,6 +84,12 @@ func TestOpenAPIAuthAndRegistrationContract(t *testing.T) {
 			}
 			operation := rawOperation.(map[string]any)
 			security, ok := operation["security"].([]any)
+			if path == "/ws" {
+				if !ok || len(security) != 2 || security[0].(map[string]any)["bearerAuth"] == nil || security[1].(map[string]any)["wsTicket"] == nil {
+					t.Errorf("WebSocket lacks mobile Bearer/browser ticket alternatives")
+				}
+				continue
+			}
 			if !ok || len(security) != 1 {
 				t.Errorf("protected operation %s %s does not require bearerAuth", method, path)
 			}
@@ -106,21 +112,79 @@ func TestOpenAPIAuthAndRegistrationContract(t *testing.T) {
 	if register["additionalProperties"] != false || strings.Join(stringSlice(register["required"]), ",") != "first_name,email,password" {
 		t.Fatal("registration required/additionalProperties contract drifted")
 	}
-	validation := schemas["RegisterValidationError"].(map[string]any)
-	properties := validation["properties"].(map[string]any)
+	fieldError := schemas["FieldError"].(map[string]any)
+	properties := fieldError["properties"].(map[string]any)
 	codes := stringSlice(properties["code"].(map[string]any)["enum"])
-	expectedCodes := []string{"invalid_input"}
-	for _, validationError := range []domainauth.ValidationError{
-		domainauth.ErrFirstNameRequired, domainauth.ErrFirstNameTooLong, domainauth.ErrFirstNameInvalid,
-		domainauth.ErrLastNameTooLong, domainauth.ErrLastNameInvalid,
-		domainauth.ErrEmailRequired, domainauth.ErrEmailInvalid,
-		domainauth.ErrPasswordRequired, domainauth.ErrPasswordTooShort,
-		domainauth.ErrPasswordTooLong, domainauth.ErrPasswordInvalid,
-	} {
-		expectedCodes = append(expectedCodes, strings.ToLower(strings.ReplaceAll(validationError.Message, " ", "_")))
-	}
+	expectedCodes := []string{"required", "too_long", "invalid_characters", "invalid_email", "too_short", "invalid_input"}
 	if strings.Join(codes, ",") != strings.Join(expectedCodes, ",") {
-		t.Fatalf("registration validation codes drifted: %v", codes)
+		t.Fatalf("registration detail codes drifted: %v", codes)
+	}
+}
+
+func TestOpenAPIRESTResponseEnvelopes(t *testing.T) {
+	var document map[string]any
+	if err := json.Unmarshal(specification(t), &document); err != nil {
+		t.Fatal(err)
+	}
+	schemas := document["components"].(map[string]any)["schemas"].(map[string]any)
+	for _, name := range []string{
+		"HealthResponse", "UserResponse", "LoginResponse", "RefreshResponse", "WSTicketResponse",
+		"UserSearchPage", "PrivateProfileResponse", "PublicProfileResponse",
+		"DirectConversationResponse", "ConversationListResponse", "MessageResponse",
+		"MessagePage", "MarkReadResponse",
+	} {
+		schema := schemas[name].(map[string]any)
+		required := strings.Join(stringSlice(schema["required"]), ",")
+		if !strings.Contains(required, "status") || !strings.Contains(required, "data") {
+			t.Errorf("%s does not require status/data: %s", name, required)
+		}
+		status := schema["properties"].(map[string]any)["status"].(map[string]any)
+		if strings.Join(stringSlice(status["enum"]), ",") != "success" {
+			t.Errorf("%s status is not success", name)
+		}
+	}
+	for _, name := range []string{"UserSearchPage", "MessagePage"} {
+		required := strings.Join(stringSlice(schemas[name].(map[string]any)["required"]), ",")
+		if !strings.Contains(required, "meta") {
+			t.Errorf("%s does not require pagination metadata", name)
+		}
+	}
+	for name, want := range map[string]string{"ErrorResponse": "fail", "InternalErrorResponse": "error"} {
+		status := schemas[name].(map[string]any)["properties"].(map[string]any)["status"].(map[string]any)
+		if strings.Join(stringSlice(status["enum"]), ",") != want {
+			t.Errorf("%s status is not %s", name, want)
+		}
+	}
+}
+
+func TestOpenAPIBrowserTicketContract(t *testing.T) {
+	var document map[string]any
+	if err := json.Unmarshal(specification(t), &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := document["paths"].(map[string]any)
+	issue := paths["/api/ws/tickets"].(map[string]any)["post"].(map[string]any)
+	if _, exists := issue["requestBody"]; exists {
+		t.Fatal("ticket issuance must not accept a request body")
+	}
+	created := issue["responses"].(map[string]any)["201"].(map[string]any)
+	cache := created["headers"].(map[string]any)["Cache-Control"].(map[string]any)["schema"].(map[string]any)
+	if cache["example"] != "no-store" {
+		t.Fatal("ticket response must document no-store")
+	}
+	components := document["components"].(map[string]any)
+	security := components["securitySchemes"].(map[string]any)["wsTicket"].(map[string]any)
+	if security["type"] != "apiKey" || security["in"] != "query" || security["name"] != "ticket" {
+		t.Fatal("browser ticket security scheme drifted")
+	}
+	data := components["schemas"].(map[string]any)["WSTicketResponse"].(map[string]any)["properties"].(map[string]any)["data"].(map[string]any)
+	if strings.Join(stringSlice(data["required"]), ",") != "ticket,expires_at" {
+		t.Fatal("ticket response fields drifted")
+	}
+	properties := data["properties"].(map[string]any)
+	ticket := properties["ticket"].(map[string]any)
+	if ticket["minLength"] != float64(43) || ticket["maxLength"] != float64(43) || properties["expires_at"].(map[string]any)["format"] != "date-time" {
+		t.Fatal("ticket length or expiry format drifted")
 	}
 }
 

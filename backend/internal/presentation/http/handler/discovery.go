@@ -7,6 +7,7 @@ import (
 	"github.com/lilpao0/chat_app/backend/internal/domain/entity"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/middleware"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/response"
+	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -46,7 +47,9 @@ func (h *DiscoveryHandler) Search(c *gin.Context) {
 	for _, user := range page.Items {
 		items = append(items, participantDTO{ID: user.ID, Name: user.Name, AvatarURL: user.AvatarURL})
 	}
-	c.JSON(200, gin.H{"items": items, "has_more": page.HasMore, "next_after_id": page.NextAfterID})
+	response.SuccessWithMeta(c, http.StatusOK, items, gin.H{
+		"pagination": gin.H{"has_more": page.HasMore, "next_after_id": page.NextAfterID},
+	})
 }
 
 func parseSearchQuery(raw string) (entity.UserSearchQuery, error) {
@@ -107,5 +110,8 @@ func (h *DiscoveryHandler) OpenDirect(c *gin.Context) {
 	if conversation.Created {
 		status = 201
 	}
-	c.JSON(status, gin.H{"conversation": gin.H{"id": conversation.ID, "user": participantDTO{ID: conversation.Participant.ID, Name: conversation.Participant.Name, AvatarURL: conversation.Participant.AvatarURL}}})
+	response.Success(c, status, gin.H{
+		"id":   conversation.ID,
+		"user": participantDTO{ID: conversation.Participant.ID, Name: conversation.Participant.Name, AvatarURL: conversation.Participant.AvatarURL},
+	})
 }

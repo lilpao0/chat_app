@@ -42,7 +42,7 @@ func TestConversationList(t *testing.T) {
 		t.Fatal(err)
 	}
 	gin.SetMode(gin.TestMode)
-	r, protected := presentation.NewRouter(domainauth.NewRegister(users, passwords), domainauth.NewLogin(users, passwords, tokens), domainauth.NewRefresh(tokens), tokens)
+	r, protected := presentation.NewRouter(domainauth.NewRegister(users, passwords), domainauth.NewLogin(users, passwords, tokens), domainauth.NewRefresh(tokens), tokens, nil)
 	repo := datarepo.NewPostgresConversationRepository(db)
 	protected.GET("/conversations", handler.NewConversationsHandler(conversation.NewList(repo)).List)
 	get := func(userID int64) *httptest.ResponseRecorder {
@@ -61,7 +61,11 @@ func TestConversationList(t *testing.T) {
 		t.Fatal("empty conversation DTO incorrect")
 	}
 	c := get(outsider.ID)
-	if c.Code != 200 || c.Body.String() != "[]" {
+	var empty struct {
+		Status string            `json:"status"`
+		Data   []json.RawMessage `json:"data"`
+	}
+	if c.Code != 200 || json.Unmarshal(c.Body.Bytes(), &empty) != nil || empty.Status != "success" || empty.Data == nil || len(empty.Data) != 0 {
 		t.Fatal("outsider saw conversation")
 	}
 	// Fixture writes use the same lock-before-ID rule as the production send repository.
@@ -97,13 +101,16 @@ func TestConversationList(t *testing.T) {
 		t.Fatal("self-sent message counted unread")
 	}
 	b := get(fixture.UserBID)
-	var result []struct {
-		ID   int64 `json:"id"`
-		User struct {
-			ID int64 `json:"id"`
-		} `json:"user"`
+	var result struct {
+		Status string `json:"status"`
+		Data   []struct {
+			ID   int64 `json:"id"`
+			User struct {
+				ID int64 `json:"id"`
+			} `json:"user"`
+		} `json:"data"`
 	}
-	if json.Unmarshal(b.Body.Bytes(), &result) != nil || len(result) != 1 || result[0].User.ID != fixture.UserAID || result[0].ID != fixture.ConversationID {
+	if json.Unmarshal(b.Body.Bytes(), &result) != nil || result.Status != "success" || len(result.Data) != 1 || result.Data[0].User.ID != fixture.UserAID || result.Data[0].ID != fixture.ConversationID {
 		t.Fatal("wrong counterpart")
 	}
 	req := httptest.NewRequest("GET", "/api/conversations", nil)

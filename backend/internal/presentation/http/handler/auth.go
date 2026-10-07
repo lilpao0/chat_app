@@ -8,7 +8,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
@@ -88,8 +87,13 @@ func (h *RegisterHandler) Handle(c *gin.Context) {
 	// Check for specific validation errors
 	var ve auth.ValidationError
 	if errors.As(err, &ve) {
-		code := strings.ToLower(strings.ReplaceAll(ve.Message, " ", "_"))
-		response.Error(c, 400, code, ve.Message)
+		response.ErrorWithDetails(
+			c,
+			http.StatusBadRequest,
+			"invalid_input",
+			"The submitted information is invalid.",
+			[]response.FieldError{{Field: ve.Field, Code: validationDetailCode(ve), Message: ve.Message}},
+		)
 		return
 	}
 
@@ -101,5 +105,27 @@ func (h *RegisterHandler) Handle(c *gin.Context) {
 		response.Error(c, 500, "internal_error", "Unable to complete the request.")
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"user": toUserDTO(user)})
+	response.Success(
+		c,
+		http.StatusCreated,
+		toUserDTO(user),
+	)
+}
+
+func validationDetailCode(err auth.ValidationError) string {
+	switch err {
+	case auth.ErrFirstNameRequired, auth.ErrFirstNameEmpty,
+		auth.ErrEmailRequired, auth.ErrPasswordRequired:
+		return "required"
+	case auth.ErrFirstNameTooLong, auth.ErrLastNameTooLong, auth.ErrPasswordTooLong:
+		return "too_long"
+	case auth.ErrFirstNameInvalid, auth.ErrLastNameInvalid, auth.ErrPasswordInvalid:
+		return "invalid_characters"
+	case auth.ErrEmailInvalid:
+		return "invalid_email"
+	case auth.ErrPasswordTooShort:
+		return "too_short"
+	default:
+		return "invalid_input"
+	}
 }

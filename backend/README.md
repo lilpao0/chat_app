@@ -6,7 +6,9 @@ Follow the [MVP implementation plan](docs/MVP_PLAN.md) for the eight milestones 
 
 Read [docs/AGENTS.md](docs/AGENTS.md) and current decisions first. The user authorizes continuation until a decision is needed; retain small steps, verification and **Vietnamese** explanations. Documentation is written in English.
 
-The Go module is `github.com/lilpao0/chat_app/backend`. Auth, REST chat, discovery/direct chat, profiles, and Android/iOS realtime delivery are implemented through B34 plus the documented extensions. Startup requires `DATABASE_URL` and `JWT_SECRET`.
+The Go module is `github.com/lilpao0/chat_app/backend`. Auth, REST chat, discovery/direct chat, profiles, and Android/iOS/Web realtime delivery are implemented through B34 plus the documented extensions. Startup requires `DATABASE_URL` and `JWT_SECRET`.
+
+For Flutter Web, set `WEB_ALLOWED_ORIGINS=http://localhost:5173` (replace with actual origin). REST accepts Authorization preflight; browser WS uses Bearer-authenticated `POST /api/ws/tickets`, then `/ws?ticket=...` without Authorization. Mobile keeps Bearer admission without Origin. See [browser setup and Cloud Run release checks](docs/FLUTTER_WEB_TESTING.md). Hosted deployment and actual Flutter Web acceptance are not performed by local tests.
 
 ## Local database migrations
 
@@ -41,7 +43,7 @@ Run `go test -v ./internal/data/auth/... ./internal/domain/usecase/auth/...` fro
 
 From backend, set DATABASE_URL to a database with migrations applied and JWT_SECRET to a random secret of at least 32 bytes. Optional defaults: JWT_ISSUER=chat-app, JWT_AUDIENCE=chat-app-mobile, JWT_TTL=24h, JWT_REFRESH_TTL=720h, HTTP_PORT=8080. The API and seed commands optionally load `.env` from the current working directory; explicit process variables take precedence. Tests use `TEST_DATABASE_URL` from the process environment. Never commit actual credentials.
 
-Start with `go run ./cmd/api`. Send Content-Type: application/json. POST /api/auth/register accepts name, email and password; it returns a public user without automatically logging in. POST /api/auth/login accepts email/password and returns the user, access token, refresh token, and their expiration times. POST /api/auth/refresh accepts `{"refresh_token":"..."}` and returns a new access token. Protected routes use Authorization: Bearer <access_token>.
+Start with `go run ./cmd/api`. Send Content-Type: application/json. REST success responses use `status: "success"` and `data`; paginated responses add `meta.pagination`. Client failures use `status: "fail"`; server failures use `status: "error"`. POST /api/auth/register accepts first name, optional last name, email and password; it returns a public user without automatically logging in. POST /api/auth/login accepts email/password and returns the user, access token, refresh token, and their expiration times inside `data`. POST /api/auth/refresh accepts `{"refresh_token":"..."}` and returns a new access token inside `data`. Protected routes use Authorization: Bearer <access_token>.
 
 Interactive Swagger documentation is available at `http://localhost:8080/swagger` (replace `8080` when `HTTP_PORT` is different). Use **Authorize** with the `access_token` returned by login to call protected routes. The embedded OpenAPI 3 contract is available at `/swagger/openapi.json`; the UI loads its pinned Swagger UI assets from jsDelivr and therefore needs internet access for the page assets.
 
@@ -70,7 +72,9 @@ Initial/before history is descending by ID; after history is ascending. The clie
 
 ## Realtime WebSocket
 
-Flutter Android/iOS supports bidirectional `send_message` and `mark_read` commands, correlated acknowledgements/errors and committed `new_message` events. Apply migration `000003_message_request_id` before starting the updated API. REST mutations remain compatible; see [protocol and retry rules](docs/WEBSOCKET_PLAN.md).
+Flutter Android/iOS/Web supports bidirectional `send_message` and `mark_read` commands, correlated acknowledgements/errors and committed `new_message` events. Apply migration `000003_message_request_id` before starting the updated API. REST mutations remain compatible; see [protocol and retry rules](docs/WEBSOCKET_PLAN.md).
+
+To exercise the complete API in Postman, import [the REST collection](docs/chat-app-rest.postman_collection.json) and [the WebSocket AsyncAPI document](docs/chat-app-websocket.asyncapi.json) separately. Open the generated `/ws` request at `ws://localhost:8080/ws`, add `Authorization: Bearer <access_token>` as a handshake header, then send one of the provided `send_message` or `mark_read` examples. Postman keeps HTTP and WebSocket requests in different collection types.
 
 ```dart
 import 'dart:convert';

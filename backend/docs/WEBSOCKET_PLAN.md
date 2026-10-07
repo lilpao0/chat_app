@@ -6,11 +6,11 @@ Updated: 2026-09-28. This replaces the completed W01-W13 implementation plan for
 
 The user requested bidirectional chat. The runtime now accepts socket commands and retains REST compatibility. The protocol below is implemented; verification status is tracked in BACKLOG.
 
-Reuse Android/iOS Bearer authentication, `/ws`, the user/device hub, event DTO, membership checks, PostgreSQL message transactions, history, and read-position use cases. Keep the existing REST routes during migration; deleting a public endpoint is not necessary to enable socket commands.
+Reuse Android/iOS Bearer authentication, `/ws`, the user/device hub, event DTO, membership checks, PostgreSQL message transactions, history, and read-position use cases. Keep the existing REST routes during migration; deleting a public endpoint is not necessary to enable socket commands. REST fallback and catch-up responses use the shared `status`/`data`/`meta` HTTP envelope; socket frames below do not.
 
 Commands: `send_message` and `mark_read`. Responses: `message_sent`, `read_updated`, and `error`. Existing `new_message` remains the fan-out event. `read_updated` acknowledges the requesting device's marker; it does not introduce recipient read receipts.
 
-The single-process hub remains. Browser support, media, groups, typing, presence, distributed broadcasting, guaranteed event replay, and exactly-once network delivery are outside this migration.
+The single-process hub remains. Browser support was added separately under [FLUTTER_WEB_SUPPORT_PLAN.md](FLUTTER_WEB_SUPPORT_PLAN.md); browser admission uses one-use tickets, without changing the protocol below. See [FLUTTER_WEB_TESTING.md](FLUTTER_WEB_TESTING.md). Media, groups, typing, presence, distributed broadcasting, guaranteed event replay, and exactly-once network delivery remain outside scope.
 
 ## Cleanup boundaries
 
@@ -105,7 +105,7 @@ Exit: tests prove publish-after-commit, no publish on replay/rollback, retry res
 
 ### WS2-04 - Lifecycle and bounded command dispatcher
 
-Refactor `connection.go`, hub/session injection, and WebSocket config. Replace the one-shot reject-all reader with bounded parsing/dispatch. Add a command worker, timeout/rate controls, response queuing, and cancellation supervision. Check every nonempty Origin header value before upgrade; duplicate headers must not bypass the browser restriction.
+Refactor `connection.go`, hub/session injection, and WebSocket config. Replace the one-shot reject-all reader with bounded parsing/dispatch. Add a command worker, timeout/rate controls, response queuing, and cancellation supervision. Current browser admission checks one approved Origin plus a valid ticket; duplicate headers must not bypass origin validation.
 
 Exit: tests cover reader responsiveness during blocked SQL, ping/pong success and failure, expiry during blocked ping/write/command, slow outbound consumers, command overflow, oversized input, binary messages, disconnect cleanup, and forced shutdown. Run under the race detector.
 
@@ -137,4 +137,4 @@ Record executed checks and remaining limitations honestly in BACKLOG. Never labe
 
 ## Acceptance outcome
 
-Android/iOS clients send messages and read markers through the authenticated socket, receive correlated acknowledgements/errors, and receive member-authorized new-message broadcasts. Lost acknowledgements can be retried without duplicate persisted messages. History and reconnect recovery remain REST-based. All connection workers have bounded resources and deterministic cleanup.
+Android/iOS and approved-origin Web clients send messages and read markers through the authenticated socket, receive correlated acknowledgements/errors, and receive member-authorized new-message broadcasts. Lost acknowledgements can be retried without duplicate persisted messages. History and reconnect recovery remain REST-based. All connection workers have bounded resources and deterministic cleanup.

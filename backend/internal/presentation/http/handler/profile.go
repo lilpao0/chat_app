@@ -64,7 +64,7 @@ func (h *ProfileHandler) Update(c *gin.Context) {
 		profileReadError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"user": toPrivateProfileDTO(profile)})
+	response.Success(c, http.StatusOK, toPrivateProfileDTO(profile))
 }
 
 func toUpdateProfileInput(request updateProfileRequest) user.UpdateProfileInput {
@@ -150,9 +150,7 @@ func (h *ProfileHandler) GetPrivate(c *gin.Context) {
 		profileReadError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"user": toPrivateProfileDTO(profile),
-	})
+	response.Success(c, http.StatusOK, toPrivateProfileDTO(profile))
 }
 
 func (h *ProfileHandler) GetPublic(c *gin.Context) {
@@ -185,9 +183,7 @@ func (h *ProfileHandler) GetPublic(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"user": toPublicProfileDTO(profile),
-	})
+	response.Success(c, http.StatusOK, toPublicProfileDTO(profile))
 }
 
 func profileReadError(c *gin.Context, err error) {

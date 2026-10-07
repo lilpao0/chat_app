@@ -12,9 +12,9 @@ import (
 	"github.com/lilpao0/chat_app/backend/internal/domain/repository"
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/conversation"
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/message"
+	"github.com/lilpao0/chat_app/backend/internal/presentation/authentication"
 	presentation "github.com/lilpao0/chat_app/backend/internal/presentation/http"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/handler"
-	"github.com/lilpao0/chat_app/backend/internal/presentation/http/middleware"
 	ws "github.com/lilpao0/chat_app/backend/internal/presentation/websocket"
 	"github.com/lilpao0/chat_app/backend/internal/testutil"
 	"net/http"
@@ -25,6 +25,16 @@ import (
 )
 
 func TestBidirectionalChatAcceptance(t *testing.T) {
+	for _, browser := range []bool{false, true} {
+		name := "mobile"
+		if browser {
+			name = "browser"
+		}
+		t.Run(name, func(t *testing.T) { testBidirectionalChatAcceptance(t, browser) })
+	}
+}
+
+func testBidirectionalChatAcceptance(t *testing.T, browser bool) {
 	db := testutil.Database(t)
 	ctx := context.Background()
 	a := repository.CreateUser{FirstName: "A", Email: "two-a@test.local", PasswordHash: "fixture"}
@@ -50,9 +60,11 @@ func TestBidirectionalChatAcceptance(t *testing.T) {
 	commands.Send = send
 	commands.Read = conversation.NewMarkRead(messages)
 	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	presentation.RegisterWebSocketRoute(r, ws.NewHandler(tokens, hub).Handle)
-	protected := r.Group("/api", middleware.Authenticate(tokens))
+	origins := []string{browserOrigin}
+	tickets := authentication.NewTicketStore()
+	r, protected := presentation.NewRouter(nil, nil, nil, tokens, origins)
+	presentation.RegisterWebSocketRoute(r, ws.NewHandler(tokens, hub, origins, tickets).Handle)
+	protected.POST("/ws/tickets", handler.NewWSTicketHandler(tickets, origins))
 	protected.POST("/conversations/:id/messages", handler.NewSendMessageHandler(send).Send)
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -64,7 +76,20 @@ func TestBidirectionalChatAcceptance(t *testing.T) {
 		return token.Value
 	}
 	tokenA, tokenB, tokenC := issue(ab.UserAID), issue(ab.UserBID), issue(ac.UserBID)
-	a1, a2, b, c := connect(t, server, tokenA), connect(t, server, tokenA), connect(t, server, tokenB), connect(t, server, tokenC)
+	connectToken := func(token string) *coderws.Conn {
+		t.Helper()
+		if !browser {
+			return connect(t, server, token)
+		}
+		ticket := issueBrowserTicket(t, server, token)
+		conn, _, err := browserDial(server, "?ticket="+ticket, browserOrigin, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = conn.CloseNow() })
+		return conn
+	}
+	a1, a2, b, c := connectToken(tokenA), connectToken(tokenA), connectToken(tokenB), connectToken(tokenC)
 	waitForConnections(t, hub, ab.UserAID, 2)
 	waitForConnections(t, hub, ab.UserBID, 1)
 	write := func(conn *coderws.Conn, kind, key string, data any) {
@@ -104,7 +129,7 @@ func TestBidirectionalChatAcceptance(t *testing.T) {
 	}
 	// A fresh connection resolves a lost acknowledgement using the same durable key.
 	_ = a1.CloseNow()
-	a1 = connect(t, server, tokenA)
+	a1 = connectToken(tokenA)
 	write(a1, "send_message", key, body)
 	if got := readEvent(t, a1); got["type"] != "message_sent" || got["data"].(map[string]any)["id"] != messageID {
 		t.Fatalf("reconnect retry: %v", got)
@@ -114,19 +139,22 @@ func TestBidirectionalChatAcceptance(t *testing.T) {
 	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/conversations/%d/messages", server.URL, ab.ConversationID), strings.NewReader(string(raw)))
 	req.Header.Set("Authorization", "Bearer "+tokenA)
 	req.Header.Set("Content-Type", "application/json")
+	if browser {
+		req.Header.Set("Origin", browserOrigin)
+	}
 	response, err := server.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var rest struct {
-		Message struct {
+		Data struct {
 			ID int64 `json:"id"`
-		} `json:"message"`
+		} `json:"data"`
 	}
 	err = json.NewDecoder(response.Body).Decode(&rest)
 	response.Body.Close()
-	if err != nil || response.StatusCode != 201 || float64(rest.Message.ID) != messageID {
-		t.Fatalf("REST retry: status=%d id=%d err=%v", response.StatusCode, rest.Message.ID, err)
+	if err != nil || response.StatusCode != 201 || float64(rest.Data.ID) != messageID {
+		t.Fatalf("REST retry: status=%d id=%d err=%v", response.StatusCode, rest.Data.ID, err)
 	}
 	body["content"] = "changed"
 	write(a1, "send_message", key, body)

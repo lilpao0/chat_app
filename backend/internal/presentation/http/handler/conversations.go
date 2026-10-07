@@ -6,6 +6,7 @@ import (
 	"github.com/lilpao0/chat_app/backend/internal/domain/entity"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/middleware"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/response"
+	"net/http"
 	"time"
 )
 
@@ -46,5 +47,5 @@ func (h *ConversationsHandler) List(c *gin.Context) {
 	for _, item := range items {
 		result = append(result, conversationDTO{ID: item.ID, User: participantDTO{ID: item.Participant.ID, Name: item.Participant.Name, AvatarURL: item.Participant.AvatarURL}, LastMessage: item.LastMessage, LastMessageAt: item.LastMessageAt, UnreadCount: item.UnreadCount})
 	}
-	c.JSON(200, result)
+	response.Success(c, http.StatusOK, result)
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/lilpao0/chat_app/backend/internal/domain/entity"
+	"github.com/lilpao0/chat_app/backend/internal/presentation/http/response"
+	"net/http"
 	"net/url"
 	"strconv"
 )
@@ -36,7 +38,11 @@ func (h *HistoryHandler) Get(c *gin.Context) {
 	for _, m := range page.Items {
 		items = append(items, toMessageDTO(m))
 	}
-	c.JSON(200, gin.H{"items": items, "has_more": page.HasMore, "next_before_id": page.NextBeforeID, "next_after_id": page.NextAfterID})
+	response.SuccessWithMeta(c, http.StatusOK, items, gin.H{
+		"pagination": gin.H{
+			"has_more": page.HasMore, "next_before_id": page.NextBeforeID, "next_after_id": page.NextAfterID,
+		},
+	})
 }
 
 func parseHistoryQuery(c *gin.Context) (entity.MessageQuery, error) {

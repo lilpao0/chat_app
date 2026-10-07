@@ -17,6 +17,7 @@ import (
 	"github.com/lilpao0/chat_app/backend/internal/data/seed"
 	"github.com/lilpao0/chat_app/backend/internal/domain/repository"
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/message"
+	"github.com/lilpao0/chat_app/backend/internal/presentation/authentication"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/handler"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/middleware"
 	presentationws "github.com/lilpao0/chat_app/backend/internal/presentation/websocket"
@@ -24,6 +25,16 @@ import (
 )
 
 func TestRealtimeRESTAcceptance(t *testing.T) {
+	for _, browser := range []bool{false, true} {
+		name := "mobile"
+		if browser {
+			name = "browser"
+		}
+		t.Run(name, func(t *testing.T) { testRealtimeRESTAcceptance(t, browser) })
+	}
+}
+
+func testRealtimeRESTAcceptance(t *testing.T, browser bool) {
 	db := testutil.Database(t)
 	ctx := context.Background()
 	ab, err := seed.Demo(ctx, db,
@@ -50,8 +61,11 @@ func TestRealtimeRESTAcceptance(t *testing.T) {
 	publisher := presentationws.NewPublisher(conversations, hub)
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	router.GET("/ws", presentationws.NewHandler(tokens, hub).Handle)
+	origins := []string{browserOrigin}
+	tickets := authentication.NewTicketStore()
+	router.GET("/ws", presentationws.NewHandler(tokens, hub, origins, tickets).Handle)
 	protected := router.Group("/api", middleware.Authenticate(tokens))
+	protected.POST("/ws/tickets", handler.NewWSTicketHandler(tickets, origins))
 	protected.POST("/conversations/:id/messages", handler.NewSendMessageHandler(message.NewSendWithPublisher(messages, publisher, func(err error) { t.Errorf("publish: %v", err) })).Send)
 	protected.GET("/conversations/:id/messages", handler.NewHistoryHandler(message.NewHistory(messages)).Get)
 	server := httptest.NewServer(router)
@@ -69,9 +83,33 @@ func TestRealtimeRESTAcceptance(t *testing.T) {
 		t.Helper()
 		header := make(http.Header)
 		header.Set("Authorization", "Bearer "+token)
+		endpoint := websocketURL(server.URL) + "/ws"
+		if browser {
+			// Simulate browser admission; Origin comes from the browser, not Bearer.
+			request, _ := http.NewRequest("POST", server.URL+"/api/ws/tickets", nil)
+			request.Header.Set("Authorization", "Bearer "+token)
+			request.Header.Set("Origin", browserOrigin)
+			response, err := server.Client().Do(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var body struct {
+				Data struct {
+					Ticket string `json:"ticket"`
+				} `json:"data"`
+			}
+			err = json.NewDecoder(response.Body).Decode(&body)
+			response.Body.Close()
+			if err != nil || response.StatusCode != 201 || body.Data.Ticket == "" {
+				t.Fatal("browser ticket issuance failed")
+			}
+			header.Del("Authorization")
+			header.Set("Origin", browserOrigin)
+			endpoint += "?ticket=" + body.Data.Ticket
+		}
 		connectCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
-		connection, _, err := coderws.Dial(connectCtx, websocketURL(server.URL)+"/ws", &coderws.DialOptions{HTTPHeader: header})
+		connection, _, err := coderws.Dial(connectCtx, endpoint, &coderws.DialOptions{HTTPHeader: header})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -98,14 +136,14 @@ func TestRealtimeRESTAcceptance(t *testing.T) {
 			t.Fatalf("send status=%d", response.StatusCode)
 		}
 		var body struct {
-			Message struct {
+			Data struct {
 				ID int64 `json:"id"`
-			} `json:"message"`
+			} `json:"data"`
 		}
 		if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 			t.Fatal(err)
 		}
-		return body.Message.ID
+		return body.Data.ID
 	}
 	firstID := send(tokenA, "first realtime")
 	for _, connection := range []*coderws.Conn{a, b} {
@@ -136,14 +174,14 @@ func TestRealtimeRESTAcceptance(t *testing.T) {
 	}
 	defer response.Body.Close()
 	var page struct {
-		Items []struct {
+		Data []struct {
 			ID int64 `json:"id"`
-		} `json:"items"`
+		} `json:"data"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&page); err != nil {
 		t.Fatal(err)
 	}
-	if response.StatusCode != http.StatusOK || len(page.Items) != 1 || page.Items[0].ID != secondID {
+	if response.StatusCode != http.StatusOK || len(page.Data) != 1 || page.Data[0].ID != secondID {
 		t.Fatalf("catch-up status=%d page=%+v", response.StatusCode, page)
 	}
 }

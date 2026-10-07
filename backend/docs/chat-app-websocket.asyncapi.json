@@ -1,0 +1,261 @@
+{
+  "asyncapi": "2.6.0",
+  "info": {
+    "title": "Chat App Bidirectional WebSocket",
+    "version": "1.1.0",
+    "description": "Import into Postman as a separate WebSocket collection. Android/iOS connect /ws with Authorization: Bearer <access_token> and no Origin. Flutter Web obtains data.ticket from POST /api/ws/tickets using Bearer, then opens /ws?ticket=<ticket> from an approved Origin without Authorization. Tickets expire within 60 seconds and are used once; obtain a new ticket for every attempt. Session lifetime follows original access-token expiry. Browser WebSocket cannot inspect failed-handshake HTTP JSON. See FLUTTER_WEB_TESTING.md for reconnect/refresh and Google Cloud setup. Commands/events keep their existing payloads."
+  },
+  "servers": {
+    "local": {
+      "url": "localhost:8080",
+      "protocol": "ws",
+      "description": "Local API; an Android Emulator normally uses 10.0.2.2:8080.",
+      "security": [{ "bearerAuth": [] }, { "wsTicket": [] }]
+    }
+  },
+  "channels": {
+    "/ws": {
+      "description": "Authenticated bidirectional JSON text frames for Android/iOS/Web. Browser query tickets require a matching approved Origin; mobile uses Bearer without Origin.",
+      "subscribe": {
+        "operationId": "receiveClientCommand",
+        "summary": "Receive a command from the client",
+        "message": {
+          "oneOf": [
+            { "$ref": "#/components/messages/SendMessageCommand" },
+            { "$ref": "#/components/messages/MarkReadCommand" }
+          ]
+        }
+      },
+      "publish": {
+        "operationId": "publishServerEvent",
+        "summary": "Publish an acknowledgement, realtime event, or error",
+        "message": {
+          "oneOf": [
+            { "$ref": "#/components/messages/MessageSent" },
+            { "$ref": "#/components/messages/ReadUpdated" },
+            { "$ref": "#/components/messages/NewMessage" },
+            { "$ref": "#/components/messages/Error" }
+          ]
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Mobile only: set Authorization: Bearer <access_token> without Origin on the upgrade request; raw JWT query transport is unsupported."
+      },
+      "wsTicket": {
+        "type": "httpApiKey",
+        "in": "query",
+        "name": "ticket",
+        "description": "Browser only: POST /api/ws/tickets with Bearer and an approved Origin, then open /ws?ticket=<ticket> from that Origin without Authorization. Fresh ticket per attempt; expiry within 60 seconds, used once before upgrade."
+      }
+    },
+    "messages": {
+      "SendMessageCommand": {
+        "name": "send_message",
+        "title": "Send message command",
+        "payload": { "$ref": "#/components/schemas/SendMessageCommand" },
+        "examples": [{
+          "payload": {
+            "type": "send_message",
+            "request_id": "550e8400-e29b-41d4-a716-446655440000",
+            "data": { "conversation_id": 10, "content": "Hello" }
+          }
+        }]
+      },
+      "MarkReadCommand": {
+        "name": "mark_read",
+        "title": "Mark conversation read command",
+        "payload": { "$ref": "#/components/schemas/MarkReadCommand" },
+        "examples": [{
+          "payload": {
+            "type": "mark_read",
+            "request_id": "550e8400-e29b-41d4-a716-446655440001",
+            "data": { "conversation_id": 10, "last_read_message_id": 101 }
+          }
+        }]
+      },
+      "MessageSent": {
+        "name": "message_sent",
+        "title": "Message persistence acknowledgement",
+        "payload": { "$ref": "#/components/schemas/MessageSent" },
+        "examples": [{
+          "payload": {
+            "type": "message_sent",
+            "request_id": "550e8400-e29b-41d4-a716-446655440000",
+            "data": { "id": 101, "conversation_id": 10, "sender_id": 1, "content": "Hello", "created_at": "2026-09-28T03:00:00Z" }
+          }
+        }]
+      },
+      "ReadUpdated": {
+        "name": "read_updated",
+        "title": "Read marker acknowledgement",
+        "payload": { "$ref": "#/components/schemas/ReadUpdated" },
+        "examples": [{
+          "payload": {
+            "type": "read_updated",
+            "request_id": "550e8400-e29b-41d4-a716-446655440001",
+            "data": { "conversation_id": 10, "last_read_message_id": 101 }
+          }
+        }]
+      },
+      "NewMessage": {
+        "name": "new_message",
+        "title": "Committed message fan-out",
+        "payload": { "$ref": "#/components/schemas/NewMessage" },
+        "examples": [{
+          "payload": {
+            "type": "new_message",
+            "data": { "id": 101, "conversation_id": 10, "sender_id": 1, "content": "Hello", "created_at": "2026-09-28T03:00:00Z" }
+          }
+        }]
+      },
+      "Error": {
+        "name": "error",
+        "title": "Command or connection error",
+        "payload": { "$ref": "#/components/schemas/Error" },
+        "examples": [
+          {
+            "payload": {
+              "type": "error",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "error": { "code": "request_conflict", "message": "Request ID was already used." }
+            }
+          },
+          {
+            "payload": {
+              "type": "error",
+              "request_id": null,
+              "error": { "code": "invalid_input", "message": "A canonical UUID request_id is required." }
+            }
+          }
+        ]
+      }
+    },
+    "schemas": {
+      "PositiveID": { "type": "integer", "format": "int64", "minimum": 1 },
+      "RequestID": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "description": "Canonical lowercase UUID; persist and reuse it for retries of one logical command."
+      },
+      "Message": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "conversation_id", "sender_id", "content", "created_at"],
+        "properties": {
+          "id": { "$ref": "#/components/schemas/PositiveID" },
+          "conversation_id": { "$ref": "#/components/schemas/PositiveID" },
+          "sender_id": { "$ref": "#/components/schemas/PositiveID" },
+          "content": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SendMessageCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "request_id", "data"],
+        "properties": {
+          "type": { "type": "string", "enum": ["send_message"] },
+          "request_id": { "$ref": "#/components/schemas/RequestID" },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["conversation_id", "content"],
+            "properties": {
+              "conversation_id": { "$ref": "#/components/schemas/PositiveID" },
+              "content": { "type": "string", "minLength": 1, "maxLength": 2000, "description": "Valid UTF-8, no NUL, nonblank; original whitespace is preserved." }
+            }
+          }
+        }
+      },
+      "MarkReadCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "request_id", "data"],
+        "properties": {
+          "type": { "type": "string", "enum": ["mark_read"] },
+          "request_id": { "$ref": "#/components/schemas/RequestID" },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["conversation_id", "last_read_message_id"],
+            "properties": {
+              "conversation_id": { "$ref": "#/components/schemas/PositiveID" },
+              "last_read_message_id": { "$ref": "#/components/schemas/PositiveID" }
+            }
+          }
+        }
+      },
+      "MessageSent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "request_id", "data"],
+        "properties": {
+          "type": { "type": "string", "enum": ["message_sent"] },
+          "request_id": { "$ref": "#/components/schemas/RequestID" },
+          "data": { "$ref": "#/components/schemas/Message" }
+        }
+      },
+      "ReadUpdated": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "request_id", "data"],
+        "properties": {
+          "type": { "type": "string", "enum": ["read_updated"] },
+          "request_id": { "$ref": "#/components/schemas/RequestID" },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["conversation_id", "last_read_message_id"],
+            "properties": {
+              "conversation_id": { "$ref": "#/components/schemas/PositiveID" },
+              "last_read_message_id": { "$ref": "#/components/schemas/PositiveID" }
+            }
+          }
+        }
+      },
+      "NewMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "data"],
+        "properties": {
+          "type": { "type": "string", "enum": ["new_message"] },
+          "data": { "$ref": "#/components/schemas/Message" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "request_id", "error"],
+        "properties": {
+          "type": { "type": "string", "enum": ["error"] },
+          "request_id": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/RequestID" },
+              { "type": "null" }
+            ]
+          },
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": ["invalid_input", "unsupported_command", "not_found", "request_conflict", "rate_limited", "internal_error"]
+              },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
