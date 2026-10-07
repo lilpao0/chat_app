@@ -118,7 +118,7 @@ messages (id, conversation_id, sender_id, content, created_at)
 
 Backend đã hoàn thành B01–B29: Auth và luồng REST chat (danh sách, gửi tin, lịch sử, đọc/chưa đọc).
 Mã nguồn chia thành `presentation`, `domain`, `data`. Read marker dùng `last_read_message_id` cùng `last_read_at`.
-B30 đang chờ chọn Flutter mobile hay cả Web để triển khai WebSocket.
+Backend đã hỗ trợ WebSocket Android/iOS bằng Bearer và Web bằng ticket dùng một lần. Cần triển khai bản mới lên Cloud Run và kiểm chứng Flutter Web; xem [hướng dẫn](backend/docs/FLUTTER_WEB_TESTING.md).
 Đọc [hướng dẫn backend](backend/README.md), [quy tắc cho agent](backend/docs/AGENTS.md)
 và [backlog từng bước](backend/docs/BACKLOG.md) trước khi triển khai.
 Theo yêu cầu mới: tiếp tục từng phần nhỏ, giải thích bằng tiếng Việt và dừng khi có câu hỏi cần người dùng quyết định.

@@ -30,10 +30,15 @@ type messageResponse struct {
 	Content        string `json:"content"`
 }
 type pageResponse struct {
-	Items   []messageResponse `json:"items"`
-	HasMore bool              `json:"has_more"`
-	Before  *int64            `json:"next_before_id"`
-	After   *int64            `json:"next_after_id"`
+	Status string            `json:"status"`
+	Data   []messageResponse `json:"data"`
+	Meta   struct {
+		Pagination struct {
+			HasMore bool   `json:"has_more"`
+			Before  *int64 `json:"next_before_id"`
+			After   *int64 `json:"next_after_id"`
+		} `json:"pagination"`
+	} `json:"meta"`
 }
 
 func TestRESTChatFlow(t *testing.T) {
@@ -56,7 +61,7 @@ func TestRESTChatFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	gin.SetMode(gin.TestMode)
-	r, protected := presentation.NewRouter(domainauth.NewRegister(users, dataauth.BcryptPasswordHasher{}), domainauth.NewLogin(users, dataauth.BcryptPasswordHasher{}, tokens), domainauth.NewRefresh(tokens), tokens)
+	r, protected := presentation.NewRouter(domainauth.NewRegister(users, dataauth.BcryptPasswordHasher{}), domainauth.NewLogin(users, dataauth.BcryptPasswordHasher{}, tokens), domainauth.NewRefresh(tokens), tokens, nil)
 	messages := datarepo.NewPostgresMessageRepository(db)
 	conversations := datarepo.NewPostgresConversationRepository(db)
 	protected.GET("/conversations", handler.NewConversationsHandler(conversation.NewList(conversations)).List)
@@ -86,12 +91,12 @@ func TestRESTChatFlow(t *testing.T) {
 			t.Fatalf("send status %d: %s", out.Code, out.Body.String())
 		}
 		var result struct {
-			Message messageResponse `json:"message"`
+			Data messageResponse `json:"data"`
 		}
 		if err := json.Unmarshal(out.Body.Bytes(), &result); err != nil {
 			t.Fatal(err)
 		}
-		return result.Message
+		return result.Data
 	}
 	history := func(suffix string) pageResponse {
 		t.Helper()
@@ -120,14 +125,16 @@ func TestRESTChatFlow(t *testing.T) {
 			t.Fatalf("read status %d", out.Code)
 		}
 		var result struct {
-			Marker int64 `json:"last_read_message_id"`
+			Data struct {
+				Marker int64 `json:"last_read_message_id"`
+			} `json:"data"`
 		}
 		if json.Unmarshal(out.Body.Bytes(), &result) != nil {
 			t.Fatal("invalid read response")
 		}
-		return result.Marker
+		return result.Data.Marker
 	}
-	if page := history(""); page.Items == nil || len(page.Items) != 0 || page.HasMore {
+	if page := history(""); page.Status != "success" || page.Data == nil || len(page.Data) != 0 || page.Meta.Pagination.HasMore {
 		t.Fatal("empty history contract")
 	}
 	m1 := send(ab.UserAID, path, " first \n")
@@ -139,20 +146,20 @@ func TestRESTChatFlow(t *testing.T) {
 		t.Fatal("new messages not unread")
 	}
 	latest := history("?limit=1")
-	if len(latest.Items) != 1 || latest.Items[0].ID != m2.ID || !latest.HasMore || latest.Before == nil || *latest.Before != m2.ID || latest.After != nil {
+	if len(latest.Data) != 1 || latest.Data[0].ID != m2.ID || !latest.Meta.Pagination.HasMore || latest.Meta.Pagination.Before == nil || *latest.Meta.Pagination.Before != m2.ID || latest.Meta.Pagination.After != nil {
 		t.Fatal("initial page incorrect")
 	}
 	older := history(fmt.Sprintf("?limit=1&before_id=%d", m2.ID))
-	if len(older.Items) != 1 || older.Items[0].ID != m1.ID || older.HasMore || older.Before != nil {
+	if len(older.Data) != 1 || older.Data[0].ID != m1.ID || older.Meta.Pagination.HasMore || older.Meta.Pagination.Before != nil {
 		t.Fatal("older page duplicates/omits boundary")
 	}
 	m3 := send(ab.UserAID, path, "third")
 	newer := history(fmt.Sprintf("?limit=1&after_id=%d", m1.ID))
-	if len(newer.Items) != 1 || newer.Items[0].ID != m2.ID || !newer.HasMore || newer.After == nil || *newer.After != m2.ID {
+	if len(newer.Data) != 1 || newer.Data[0].ID != m2.ID || !newer.Meta.Pagination.HasMore || newer.Meta.Pagination.After == nil || *newer.Meta.Pagination.After != m2.ID {
 		t.Fatal("ascending catch-up page incorrect")
 	}
 	caughtUp := history(fmt.Sprintf("?after_id=%d", m2.ID))
-	if len(caughtUp.Items) != 1 || caughtUp.Items[0].ID != m3.ID || caughtUp.HasMore || caughtUp.After != nil {
+	if len(caughtUp.Data) != 1 || caughtUp.Data[0].ID != m3.ID || caughtUp.Meta.Pagination.HasMore || caughtUp.Meta.Pagination.After != nil {
 		t.Fatal("catch-up missed newly inserted message")
 	}
 	if read(m2.ID) != m2.ID || unread() != 1 {
@@ -175,10 +182,10 @@ func TestRESTChatFlow(t *testing.T) {
 	}
 	foreign := send(ac.UserAID, fmt.Sprintf("/api/conversations/%d", ac.ConversationID), "private AC")
 	page := history(fmt.Sprintf("?before_id=%d", foreign.ID))
-	if len(page.Items) != 3 {
+	if len(page.Data) != 3 {
 		t.Fatal("foreign numeric boundary should be allowed")
 	}
-	for _, m := range page.Items {
+	for _, m := range page.Data {
 		if m.ConversationID != ab.ConversationID {
 			t.Fatal("foreign message leaked")
 		}

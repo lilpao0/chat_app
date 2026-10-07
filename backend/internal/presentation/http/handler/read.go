@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/lilpao0/chat_app/backend/internal/presentation/http/response"
+	"net/http"
 )
 
 type MarkReadUseCase interface {
@@ -27,5 +29,5 @@ func (h *ReadHandler) Mark(c *gin.Context) {
 		chatError(c, err)
 		return
 	}
-	c.JSON(200, gin.H{"conversation_id": id, "last_read_message_id": marker})
+	response.Success(c, http.StatusOK, gin.H{"conversation_id": id, "last_read_message_id": marker})
 }

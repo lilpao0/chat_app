@@ -45,7 +45,7 @@ func TestDiscoverAndOpenDirect(t *testing.T) {
 		t.Fatal(err)
 	}
 	gin.SetMode(gin.TestMode)
-	r, protected := presentation.NewRouter(domainauth.NewRegister(users, dataauth.BcryptPasswordHasher{}), domainauth.NewLogin(users, dataauth.BcryptPasswordHasher{}, tokens), domainauth.NewRefresh(tokens), tokens)
+	r, protected := presentation.NewRouter(domainauth.NewRegister(users, dataauth.BcryptPasswordHasher{}), domainauth.NewLogin(users, dataauth.BcryptPasswordHasher{}, tokens), domainauth.NewRefresh(tokens), tokens, nil)
 	conversations := datarepo.NewPostgresConversationRepository(db)
 	discovery := handler.NewDiscoveryHandler(user.NewSearch(users), conversation.NewOpenDirect(conversations))
 	protected.GET("/users", discovery.Search)
@@ -68,16 +68,21 @@ func TestDiscoverAndOpenDirect(t *testing.T) {
 		return out
 	}
 	var first struct {
-		Items []struct {
+		Status string `json:"status"`
+		Data   []struct {
 			ID        int64  `json:"id"`
 			Name      string `json:"name"`
 			AvatarURL string `json:"avatar_url"`
-		} `json:"items"`
-		HasMore bool   `json:"has_more"`
-		Next    *int64 `json:"next_after_id"`
+		} `json:"data"`
+		Meta struct {
+			Pagination struct {
+				HasMore bool   `json:"has_more"`
+				Next    *int64 `json:"next_after_id"`
+			} `json:"pagination"`
+		} `json:"meta"`
 	}
 	response := call(a, "GET", "/api/users?q=an&limit=1", "")
-	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &first) != nil || len(first.Items) != 1 || first.Items[0].ID != b || !first.HasMore || first.Next == nil || *first.Next != b {
+	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &first) != nil || first.Status != "success" || len(first.Data) != 1 || first.Data[0].ID != b || !first.Meta.Pagination.HasMore || first.Meta.Pagination.Next == nil || *first.Meta.Pagination.Next != b {
 		t.Fatalf("first search page: %d %s", response.Code, response.Body.String())
 	}
 	if strings.Contains(response.Body.String(), "email") || strings.Contains(response.Body.String(), "password") {
@@ -85,23 +90,31 @@ func TestDiscoverAndOpenDirect(t *testing.T) {
 	}
 	response = call(a, "GET", fmt.Sprintf("/api/users?q=an&limit=1&after_id=%d", b), "")
 	var second struct {
-		Items []struct {
+		Data []struct {
 			ID int64 `json:"id"`
-		} `json:"items"`
-		Next *int64 `json:"next_after_id"`
+		} `json:"data"`
+		Meta struct {
+			Pagination struct {
+				Next *int64 `json:"next_after_id"`
+			} `json:"pagination"`
+		} `json:"meta"`
 	}
-	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &second) != nil || len(second.Items) != 1 || second.Items[0].ID != c || second.Next == nil || *second.Next != c {
+	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &second) != nil || len(second.Data) != 1 || second.Data[0].ID != c || second.Meta.Pagination.Next == nil || *second.Meta.Pagination.Next != c {
 		t.Fatal("second search page incorrect")
 	}
 	response = call(a, "GET", fmt.Sprintf("/api/users?q=an&limit=1&after_id=%d", c), "")
 	var third struct {
-		Items []struct {
+		Data []struct {
 			ID int64 `json:"id"`
-		} `json:"items"`
-		HasMore bool   `json:"has_more"`
-		Next    *int64 `json:"next_after_id"`
+		} `json:"data"`
+		Meta struct {
+			Pagination struct {
+				HasMore bool   `json:"has_more"`
+				Next    *int64 `json:"next_after_id"`
+			} `json:"pagination"`
+		} `json:"meta"`
 	}
-	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &third) != nil || len(third.Items) != 1 || third.Items[0].ID != d || third.HasMore || third.Next != nil {
+	if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &third) != nil || len(third.Data) != 1 || third.Data[0].ID != d || third.Meta.Pagination.HasMore || third.Meta.Pagination.Next != nil {
 		t.Fatal("last search page incorrect")
 	}
 	response = call(a, "GET", "/api/users?q="+url.QueryEscape("B@EXAMPLE.TEST"), "")
@@ -111,7 +124,7 @@ func TestDiscoverAndOpenDirect(t *testing.T) {
 	if out := call(a, "GET", "/api/users?q=%25", ""); out.Code != 400 {
 		t.Fatal("single-character wildcard accepted")
 	}
-	if out := call(a, "GET", "/api/users?q=%25%25", ""); out.Code != 200 || !strings.Contains(out.Body.String(), `"items":[]`) {
+	if out := call(a, "GET", "/api/users?q=%25%25", ""); out.Code != 200 || !strings.Contains(out.Body.String(), `"data":[]`) {
 		t.Fatal("wildcard was interpreted as a pattern")
 	}
 	for _, path := range []string{"/api/users", "/api/users?q=a", "/api/users?q=an&limit=0", "/api/users?q=an&limit=51", "/api/users?q=an&after_id=0", "/api/users?q=an&limit=1&limit=2", "/api/users?q=%ZZ", "/api/users?q=an&user_id=1"} {
@@ -153,18 +166,18 @@ func TestDiscoverAndOpenDirect(t *testing.T) {
 			}
 			out := call(actor, "POST", "/api/conversations/direct", fmt.Sprintf(`{"user_id":%d}`, target))
 			var payload struct {
-				Conversation struct {
+				Data struct {
 					ID   int64 `json:"id"`
 					User struct {
 						ID int64 `json:"id"`
 					} `json:"user"`
-				} `json:"conversation"`
+				} `json:"data"`
 			}
 			if json.Unmarshal(out.Body.Bytes(), &payload) != nil {
 				results <- opened{Status: out.Code, Expected: target}
 				return
 			}
-			results <- opened{ID: payload.Conversation.ID, Counterpart: payload.Conversation.User.ID, Expected: target, Status: out.Code}
+			results <- opened{ID: payload.Data.ID, Counterpart: payload.Data.User.ID, Expected: target, Status: out.Code}
 		}(i)
 	}
 	wg.Wait()

@@ -31,7 +31,7 @@ func TestAuthPostgresFlow(t *testing.T) {
 	users := datarepo.NewPostgresUserRepository(db)
 	passwords := dataauth.BcryptPasswordHasher{}
 	gin.SetMode(gin.TestMode)
-	r, protected := presentation.NewRouter(domainauth.NewRegister(users, passwords), domainauth.NewLogin(users, passwords, tokens), domainauth.NewRefresh(tokens), tokens)
+	r, protected := presentation.NewRouter(domainauth.NewRegister(users, passwords), domainauth.NewLogin(users, passwords, tokens), domainauth.NewRefresh(tokens), tokens, nil)
 	protected.GET("/test-only", func(c *gin.Context) {
 		identity, ok := middleware.Identity(c)
 		if !ok {
@@ -87,47 +87,52 @@ func TestAuthPostgresFlow(t *testing.T) {
 		t.Fatalf("login status %d", login.Code)
 	}
 	var payload struct {
-		Token         string    `json:"access_token"`
-		ExpiresAt     time.Time `json:"expires_at"`
-		RefreshToken  string    `json:"refresh_token"`
-		RefreshExpiry time.Time `json:"refresh_expires_at"`
-		User          struct {
-			ID int64 `json:"id"`
-		} `json:"user"`
+		Status string `json:"status"`
+		Data   struct {
+			Token         string    `json:"access_token"`
+			ExpiresAt     time.Time `json:"expires_at"`
+			RefreshToken  string    `json:"refresh_token"`
+			RefreshExpiry time.Time `json:"refresh_expires_at"`
+			User          struct {
+				ID int64 `json:"id"`
+			} `json:"user"`
+		} `json:"data"`
 	}
 	if err := json.Unmarshal(login.Body.Bytes(), &payload); err != nil {
 		t.Fatal(err)
 	}
-	id, err := tokens.Verify(payload.Token)
-	if err != nil || id.UserID != user.ID || payload.User.ID != user.ID || !id.ExpiresAt.Equal(payload.ExpiresAt) {
+	id, err := tokens.Verify(payload.Data.Token)
+	if err != nil || payload.Status != "success" || id.UserID != user.ID || payload.Data.User.ID != user.ID || !id.ExpiresAt.Equal(payload.Data.ExpiresAt) {
 		t.Fatal("login identity or expiry mismatch")
 	}
 	if strings.Contains(login.Body.String(), user.PasswordHash) || strings.Contains(login.Body.String(), "password123") {
 		t.Fatal("credentials leaked")
 	}
-	if payload.RefreshToken == "" || !payload.RefreshExpiry.After(payload.ExpiresAt) {
+	if payload.Data.RefreshToken == "" || !payload.Data.RefreshExpiry.After(payload.Data.ExpiresAt) {
 		t.Fatal("login omitted refresh token or returned an invalid refresh expiry")
 	}
-	if request("GET", "/api/test-only", "", payload.RefreshToken).Code != 401 {
+	if request("GET", "/api/test-only", "", payload.Data.RefreshToken).Code != 401 {
 		t.Fatal("refresh token accepted by protected endpoint")
 	}
-	refreshed := request("POST", "/api/auth/refresh", `{"refresh_token":"`+payload.RefreshToken+`"}`, "")
+	refreshed := request("POST", "/api/auth/refresh", `{"refresh_token":"`+payload.Data.RefreshToken+`"}`, "")
 	if refreshed.Code != 200 {
 		t.Fatalf("refresh status/body = %d/%s", refreshed.Code, refreshed.Body.String())
 	}
 	var refreshPayload struct {
-		Token string `json:"access_token"`
+		Data struct {
+			Token string `json:"access_token"`
+		} `json:"data"`
 	}
-	if json.Unmarshal(refreshed.Body.Bytes(), &refreshPayload) != nil || refreshPayload.Token == "" {
+	if json.Unmarshal(refreshed.Body.Bytes(), &refreshPayload) != nil || refreshPayload.Data.Token == "" {
 		t.Fatal("refresh response omitted access token")
 	}
-	if request("GET", "/api/test-only", "", refreshPayload.Token).Code != 200 {
+	if request("GET", "/api/test-only", "", refreshPayload.Data.Token).Code != 200 {
 		t.Fatal("refreshed access token rejected")
 	}
-	if request("POST", "/api/auth/refresh", `{"refresh_token":"`+payload.Token+`"}`, "").Code != 401 {
+	if request("POST", "/api/auth/refresh", `{"refresh_token":"`+payload.Data.Token+`"}`, "").Code != 401 {
 		t.Fatal("access token accepted by refresh endpoint")
 	}
-	valid := request("GET", "/api/test-only?user_id=999", "", payload.Token)
+	valid := request("GET", "/api/test-only?user_id=999", "", payload.Data.Token)
 	if valid.Code != 200 {
 		t.Fatal("valid token rejected")
 	}

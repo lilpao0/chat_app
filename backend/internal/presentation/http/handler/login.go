@@ -36,7 +36,7 @@ func (h *LoginHandler) Handle(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, http.StatusOK, gin.H{
 		"user":               toUserDTO(result.User),
 		"access_token":       result.Token.Value,
 		"expires_at":         result.Token.ExpiresAt.UTC().Format(time.RFC3339),

@@ -48,7 +48,7 @@ func websocketTestServer(t *testing.T, verifier *tokenVerifierFake, sessions *se
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	handler := presentationws.NewHandler(verifier, sessions)
+	handler := presentationws.NewHandler(verifier, sessions, nil, nil)
 	router.GET("/ws", handler.Handle)
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
@@ -91,7 +91,8 @@ func TestWebSocketHandshakeAcceptsValidAccessToken(t *testing.T) {
 }
 
 type errorResponse struct {
-	Error struct {
+	Status string `json:"status"`
+	Error  struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
@@ -120,7 +121,7 @@ func assertHandshakeFailure(t *testing.T, server *httptest.Server, headers http.
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatalf("decode error response: %v", err)
 	}
-	if body.Error.Code != wantCode {
+	if body.Status != "fail" || body.Error.Code != wantCode {
 		t.Fatalf("error code = %q, want %q", body.Error.Code, wantCode)
 	}
 }
@@ -179,7 +180,7 @@ func TestWebSocketHandshakeRejectsNonGET(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	verifier := &tokenVerifierFake{}
 	sessions := &sessionRunnerFake{}
-	handler := presentationws.NewHandler(verifier, sessions)
+	handler := presentationws.NewHandler(verifier, sessions, nil, nil)
 	router := gin.New()
 	router.Any("/ws", handler.Handle)
 	request := httptest.NewRequest(http.MethodPost, "/ws", nil)

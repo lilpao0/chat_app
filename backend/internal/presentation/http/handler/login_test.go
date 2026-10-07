@@ -2,9 +2,11 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/auth"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -46,14 +48,33 @@ func TestLoginHTTP(t *testing.T) {
 		if strings.Contains(out.Body.String(), "PRIVATE") || strings.Contains(out.Body.String(), "password123") {
 			t.Fatal("secret leaked")
 		}
-		if tc.code != "" && !strings.Contains(out.Body.String(), `"code":"`+tc.code+`"`) {
-			t.Fatalf("expected error code %q in %s", tc.code, out.Body.String())
+		var body struct {
+			Status string `json:"status"`
+			Data   struct {
+				AccessToken      string `json:"access_token"`
+				ExpiresAt        string `json:"expires_at"`
+				RefreshToken     string `json:"refresh_token"`
+				RefreshExpiresAt string `json:"refresh_expires_at"`
+			} `json:"data"`
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
 		}
-		if tc.status == 200 && (!strings.Contains(out.Body.String(), `"expires_at":"2026-09-22T00:00:00Z"`) ||
-			!strings.Contains(out.Body.String(), `"refresh_token":"refresh-token"`) ||
-			!strings.Contains(out.Body.String(), `"refresh_expires_at":"2026-10-22T00:00:00Z"`) ||
-			out.Header().Get("Cache-Control") != "no-store") {
-			t.Fatal("incorrect token response")
+		if err := json.Unmarshal(out.Body.Bytes(), &body); err != nil {
+			t.Fatal(err)
+		}
+		if tc.status == http.StatusOK {
+			if body.Status != "success" || body.Data.AccessToken != "issued-token" || body.Data.ExpiresAt != "2026-09-22T00:00:00Z" || body.Data.RefreshToken != "refresh-token" || body.Data.RefreshExpiresAt != "2026-10-22T00:00:00Z" || out.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("incorrect token response: %s", out.Body.String())
+			}
+		} else {
+			wantStatus := "fail"
+			if tc.status >= 500 {
+				wantStatus = "error"
+			}
+			if body.Status != wantStatus || body.Error.Code != tc.code {
+				t.Fatalf("incorrect error response: %s", out.Body.String())
+			}
 		}
 	}
 }

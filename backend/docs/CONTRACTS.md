@@ -1,4 +1,4 @@
-# Proposed Backend Contracts
+# Backend Contracts
 
 Implemented through B34, extensions X01-X08, and profile P01-P14: **health, authentication and refresh tokens, user search, private/public profile reads and updates, opening direct 1-1 chats, conversation lists, messaging, history, read/unread state, and authenticated realtime `new_message` delivery**. [DECISIONS](DECISIONS.md) records U10/U11/U14/U15. Explain these contracts in Vietnamese.
 
@@ -9,6 +9,9 @@ Implemented through B34, extensions X01-X08, and profile P01-P14: **health, auth
 - Protected endpoints accept `Authorization: Bearer <access_token>`. Obtain identity from the verified token, not the body/query.
 - Handlers validate JSON/path/query formats; use cases enforce business rules and authorization. Reject unsupported fields, including a forged `sender_id` in send-message requests.
 - Return empty arrays as `[]`, not `null`; document nullable fields explicitly. Do not expose entities containing sensitive data directly as JSON responses.
+- Every REST success uses `{"status":"success","data":...}`. Paginated responses add `meta.pagination`; lists live directly in `data`.
+- REST client failures use `{"status":"fail","error":...}`. Server failures use `{"status":"error","error":...}`. `data` and `error` never coexist.
+- `meta` and `error.details` are omitted when absent. WebSocket frames keep their separate `type`/`request_id`/`data|error` protocol.
 - REST JSON bodies are limited to 16 KiB and return 413 when exceeded. WebSocket queue, frame, write, heartbeat, and shutdown limits are configured separately below.
 - Invalid input returns 400. JSON endpoints require a JSON content type; unsupported content types return 415.
 
@@ -16,6 +19,7 @@ Implemented through B34, extensions X01-X08, and profile P01-P14: **health, auth
 
 ```json
 {
+  "status": "fail",
   "error": {
     "code": "invalid_input",
     "message": "The submitted information is invalid."
@@ -81,8 +85,8 @@ The 72-byte limit matches [Go's bcrypt package](https://pkg.go.dev/golang.org/x/
 
 | Method/path | Auth | Input | Success |
 |---|---|---|---|
-| `GET /health` | No | None | 200 `{"status":"ok"}`; confirms only that the HTTP process responds, not DB health |
-| `POST /api/auth/register` | No | `name`, `email`, `password` | 201 `{"user": <Public user>}`; no token issued |
+| `GET /health` | No | None | 200 `{"status":"success","data":{"status":"ok"}}`; confirms only that the HTTP process responds, not DB health |
+| `POST /api/auth/register` | No | `first_name`, optional `last_name`, `email`, `password` | 201 with the public user in `data`; no token issued |
 | `POST /api/auth/login` | No | `email`, `password` | 200 as illustrated below |
 | `POST /api/auth/refresh` | No | `refresh_token` | 200 with a new access token |
 | `GET /api/users` | Yes | `q`, optional `limit`/`after_id` | 200 paginated public user summaries excluding the caller |
@@ -92,7 +96,7 @@ The 72-byte limit matches [Go's bcrypt package](https://pkg.go.dev/golang.org/x/
 | `POST /api/conversations/direct` | Yes | `user_id` | 201 new or 200 existing direct conversation |
 | `GET /api/conversations` | Yes | None | 200 array of the caller's conversations |
 | `GET /api/conversations/:id/messages` | Yes | Pagination query | 200 according to the history contract below |
-| `POST /api/conversations/:id/messages` | Yes | `content` | 201 `{"message": <Message>}` after commit |
+| `POST /api/conversations/:id/messages` | Yes | `content`, optional `request_id` | 201 with the Message in `data` after commit |
 | `POST /api/conversations/:id/read` | Yes | `last_read_message_id` | 200 with the effective updated marker |
 | Upgrade `GET /ws` | Yes | Handshake described below | 101 after successful authentication |
 
@@ -101,10 +105,10 @@ User discovery and opening direct chats were added under U11. There is still no 
 User discovery accepts a trimmed `q` of 2-254 Unicode code points. It searches literal name substrings without wildcard interpretation or exact email (case-insensitive). It never returns the caller or another user's email/hash. Optional `limit` defaults to 20 and is at most 50; `after_id` is a positive integer. Results use ascending user IDs with one extra row to determine `has_more`:
 
 ```json
-{"items":[{"id":2,"name":"Binh","avatar_url":"https://clipart-library.com/img/1816203.png"}],"has_more":false,"next_after_id":null}
+{"status":"success","data":[{"id":2,"name":"Binh","avatar_url":"https://clipart-library.com/img/1816203.png"}],"meta":{"pagination":{"has_more":false,"next_after_id":null}}}
 ```
 
-`POST /api/conversations/direct` accepts `{"user_id":2}`. It derives the caller from the Bearer token, rejects self-chat with 400 and missing users with 404. It returns `{"conversation":{"id":10,"user":{"id":2,"name":"Binh","avatar_url":"https://clipart-library.com/img/1816203.png"}}}` with 201 on first creation and 200 on reuse. A and B receive the same conversation ID regardless of which opens first. No message is sent by opening it; subsequent message/history/read calls use the existing routes and membership checks. Application creation paths serialize by the unordered pair, including demo seeding. Manual database writes that bypass those paths are not covered by this deduplication rule.
+`POST /api/conversations/direct` accepts `{"user_id":2}`. It derives the caller from the Bearer token, rejects self-chat with 400 and missing users with 404. It returns `{"status":"success","data":{"id":10,"user":{"id":2,"name":"Binh","avatar_url":"https://clipart-library.com/img/1816203.png"}}}` with 201 on first creation and 200 on reuse. A and B receive the same conversation ID regardless of which opens first. No message is sent by opening it; subsequent message/history/read calls use the existing routes and membership checks. Application creation paths serialize by the unordered pair, including demo seeding. Manual database writes that bypass those paths are not covered by this deduplication rule.
 
 ### Profile contract
 
@@ -114,7 +118,8 @@ All three profile routes require `Authorization: Bearer <access_token>`. Handler
 
 ```json
 {
-  "user": {
+  "status": "success",
+  "data": {
     "id": 1,
     "first_name": "Pao",
     "last_name": "Nguyen",
@@ -132,7 +137,8 @@ All three profile routes require `Authorization: Bearer <access_token>`. Handler
 
 ```json
 {
-  "user": {
+  "status": "success",
+  "data": {
     "id": 2,
     "name": "An Nguyen",
     "avatar_url": "https://clipart-library.com/img/1816203.png"
@@ -171,11 +177,14 @@ Successful login:
 
 ```json
 {
-  "access_token": "<token>",
-  "expires_at": "2026-09-19T03:00:00Z",
-  "refresh_token": "<refresh-token>",
-  "refresh_expires_at": "2026-10-19T03:00:00Z",
-  "user": {"id": 1, "name": "An", "email": "an@example.test", "avatar_url": ""}
+  "status": "success",
+  "data": {
+    "access_token": "<token>",
+    "expires_at": "2026-09-19T03:00:00Z",
+    "refresh_token": "<refresh-token>",
+    "refresh_expires_at": "2026-10-19T03:00:00Z",
+    "user": {"id": 1, "name": "An", "email": "an@example.test", "avatar_url": ""}
+  }
 }
 ```
 
@@ -183,18 +192,19 @@ The auth adapter signs/verifies tokens; middleware extracts the actor ID only fr
 
 This intentionally simple MVP does not persist, rotate, or revoke refresh tokens. A valid refresh token can be reused until expiration, and client logout only deletes its local tokens. Production hardening should use server-side sessions, hashed opaque refresh tokens, rotation/reuse detection, and revocation.
 
-Conversation list:
+Conversation list (`data` is `[]` when empty):
 
 ```json
-[
-  {
+{
+  "status": "success",
+  "data": [{
     "id": 10,
     "user": {"id": 2, "name": "Binh", "avatar_url": ""},
     "last_message": "Hello!",
     "last_message_at": "2026-09-18T03:00:00Z",
     "unread_count": 1
-  }
-]
+  }]
+}
 ```
 
 `user` is the other participant in the 1–1 conversation. Conversations without messages return `last_message: null`, `last_message_at: null`, and `unread_count: 0`. Select the last message by the conversation's highest message ID, not timestamp alone. Sort conversations by descending `conversations.updated_at`, breaking ties by descending conversation ID. The small demo does not paginate this list; return only conversations where the caller is a member.
@@ -211,12 +221,17 @@ By default, return the latest 20 messages; `limit` must be between 1 and 100. Al
 
 ```json
 {
-  "items": [
+  "status": "success",
+  "data": [
     {"id": 100, "conversation_id": 10, "sender_id": 1, "content": "Hello!", "created_at": "2026-09-18T03:00:00Z"}
   ],
-  "has_more": false,
-  "next_before_id": null,
-  "next_after_id": null
+  "meta": {
+    "pagination": {
+      "has_more": false,
+      "next_before_id": null,
+      "next_after_id": null
+    }
+  }
 }
 ```
 
@@ -262,7 +277,7 @@ Request:
 Response:
 
 ```json
-{"conversation_id": 10, "last_read_message_id": 100}
+{"status":"success","data":{"conversation_id":10,"last_read_message_id":100}}
 ```
 
 The client sends a marker only up to the newest message displayed in that conversation. It means "read through this point," including older messages, not proof that each historical message was individually viewed. The server verifies membership and that the target exists in this conversation; do not use `now()` as the boundary of read content.
@@ -275,10 +290,13 @@ Unread count equals messages in the conversation sent by someone other than the 
 
 Bidirectional commands are implemented; [WEBSOCKET_PLAN.md](WEBSOCKET_PLAN.md) contains full command/response examples and retry semantics.
 
-The confirmed clients are Flutter Android and iOS only. Flutter Web and browser clients are outside the current scope.
+Supported clients are Flutter Android, iOS and Web. Browser setup and refresh/reconnect examples are in [FLUTTER_WEB_TESTING.md](FLUTTER_WEB_TESTING.md).
 
 - Mobile supplies the Bearer token through a handshake header; [Dart WebSocket.connect](https://api.dart.dev/dart-io/WebSocket/connect.html) supports additional headers. Authenticate before upgrade; invalid tokens return HTTP 401. Do not put long-lived access tokens in URL query parameters.
-- Before upgrade, non-GET requests return 405 `method_not_allowed`, a nonempty browser Origin returns 403 `origin_not_allowed`, and authentication failures return 401 `unauthenticated`. These remain normal JSON HTTP errors because no protocol upgrade has occurred.
+- Browser calls `POST /api/ws/tickets` with Bearer and an approved Origin, with no request body. HTTP 201 returns `{"status":"success","data":{"ticket":"<43-character base64url value>","expires_at":"<RFC3339 timestamp>"}}` and `Cache-Control: no-store`. Expiry is the earlier of 60 seconds or access-token expiry. Tickets bind the verified identity and Origin, are consumed atomically before upgrade, and cannot be reused even after a failed upgrade. Wrong Origin does not consume another origin's ticket.
+- Browser opens `GET /ws?ticket=<ticket>` without Authorization. Mobile keeps Bearer with no Origin/ticket. Reject mixed credentials, duplicate/empty ticket parameters, malformed queries and unknown query fields with 400 `invalid_input`. Missing/expired/used browser tickets return 401 `invalid_ws_ticket`; invalid mobile authentication returns 401 `unauthenticated`. Invalid/unapproved Origin returns 403 `origin_not_allowed`. Non-GET handling returns 405 `method_not_allowed` before upgrade when routed to the handler; the registered endpoint is GET only.
+- Ticket issuance returns 401 `unauthenticated`, 403 `origin_not_allowed`, 400 `invalid_input`, 429 `rate_limited` at capacity, or 500 `internal_error`. Store holds at most 8 pending tickets per user and 4096 globally, purging expired entries during issuance. It is process-local; restart/revision changes lose outstanding tickets. Use a fresh ticket on every attempt. Redact ticket query URLs from infrastructure logs and use HTTPS/WSS outside local development.
+- Pre-upgrade application errors use the HTTP fail/error envelope. Browser WebSocket cannot inspect their JSON/status; handle error/close and diagnose through REST issuance or server diagnostics. Ticket expiry does not close an established socket; original access-token expiry does.
 - Derive connection identity from the token; clients cannot freely subscribe to other users/conversations. Determine recipients from stored membership.
 - `new_message` contains the committed Message DTO. Deliver it to connections belonging to both members so multiple devices can synchronize; deduplicate by message ID.
 - Send `send_message` or `mark_read` as one text JSON object with `type`, canonical lowercase UUID `request_id`, and `data`. Receive `message_sent`, `read_updated`, or a correlated `error`. Invalid/unparseable request IDs yield `request_id: null`. Unknown fields, missing/null required data and invalid types are rejected. Unsupported commands produce `unsupported_command`; binary closes with 1003; oversized input closes with 1009.
@@ -286,7 +304,8 @@ The confirmed clients are Flutter Android and iOS only. Flutter Web and browser 
 - Acknowledgement and fan-out ordering is unspecified. Merge by message ID. Read markers are monotonic and acknowledgements are private to the submitting socket.
 - Each connection has a bounded buffer and one sequential writer; slow clients must not block the entire hub. Add ping/pong, deadlines, and goroutine cleanup on disconnect/shutdown. Select concrete limits during lifecycle work and record them in configuration.
 - If the token expires while a socket is open, close it (close code 1008, a policy violation under [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1)); the client must refresh or obtain a valid access token before reconnecting. Do not authenticate once and allow the socket to remain open indefinitely.
-- Reject a nonempty browser Origin before upgrade because browser clients are outside the confirmed scope. HTTP CORS does not authenticate a WebSocket handshake.
+- `WEB_ALLOWED_ORIGINS` is a comma-separated exact http/https origin allowlist shared by REST CORS, ticket issuance and WS admission. Reject paths, wildcards, userinfo, query, fragment and invalid ports at startup; empty configuration disables cross-origin browser support. Duplicate/empty/null Origin headers are rejected. Origin is not identity authentication.
+- REST CORS runs before Bearer middleware, allowing unauthenticated OPTIONS preflight and Authorization/Content-Type headers for approved origins, including application error responses and refresh. Cookies are not enabled. CORS rejection may be a bodyless 403; disallowed origins cannot read responses through browsers. Same-origin REST follows normal authentication, but browser WS still requires an explicitly approved Origin.
 
 ```json
 {
@@ -316,6 +335,7 @@ The API and seed commands load optional `.env` values from the current working d
 | `JWT_AUDIENCE` | Proposed default `chat-app-mobile`; adjust if additional platforms are confirmed | B12 |
 | `JWT_TTL` | Default `24h`; duration of at least 1s for JWT second precision; a demo value rather than production policy | B12 |
 | `JWT_REFRESH_TTL` | Default `720h` (30 days); duration of at least 1s; refresh JWT lifetime for the simple MVP flow | U12 |
+| `WEB_ALLOWED_ORIGINS` | Exact comma-separated http/https origins; empty disables cross-origin browser access/tickets; example `http://localhost:5173` | WEB-01 |
 | A/B seed configuration | Demo emails/names and local passwords supplied by the operator; required only by the seed, not normal server execution | B17 |
 | `WS_COMMAND_QUEUE_CAPACITY` | Default 16; integer 1-10,000 | WS2-04 |
 | `WS_COMMAND_TIMEOUT` | Default 5s; duration of at least 1s | WS2-04 |

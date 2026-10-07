@@ -7,6 +7,7 @@ import (
 	"github.com/lilpao0/chat_app/backend/internal/domain/entity"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/middleware"
 	"github.com/lilpao0/chat_app/backend/internal/presentation/http/response"
+	"net/http"
 	"strconv"
 	"time"
 )
@@ -91,5 +92,5 @@ func (h *SendMessageHandler) Send(c *gin.Context) {
 		chatError(c, err)
 		return
 	}
-	c.JSON(201, gin.H{"message": toMessageDTO(message)})
+	response.Success(c, http.StatusCreated, toMessageDTO(message))
 }

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Chat App REST — Complete REST Flow",
-    "description": "Run requests 01–20 manually in order. Before each dependent request, copy IDs and tokens from the previous response into the collection variables; this collection intentionally contains no scripts that generate or overwrite variable data. Set emailA, emailB, and password before registration. Password must contain 8+ Unicode code points and at most 72 UTF-8 bytes. Requires the API on baseUrl with current migrations applied. The requests cover registration, login, access/refresh tokens, user discovery, direct chat, messaging, unread/read state, conversation reuse, private/public profiles, profile updates, and the three HTTP 401 error codes. WebSocket is intentionally outside this REST collection.",
+    "description": "Run requests 01–21 manually in order. Before each dependent request, copy IDs and tokens from the previous response into the collection variables; this collection intentionally contains no scripts that generate or overwrite variable data. Set emailA, emailB, and password before registration. Password must contain 8+ Unicode code points and at most 72 UTF-8 bytes. Requires the API on baseUrl with current migrations applied. The requests cover registration, login, access/refresh tokens, user discovery, direct chat, messaging, unread/read state, conversation reuse, private/public profiles, profile updates, the three HTTP 401 error codes, and browser WebSocket ticket issuance. Set webOrigin to an exact configured origin; copy data.ticket from request 21 into /ws?ticket=... with matching Origin and no Authorization. Fresh ticket per attempt. Import docs/chat-app-websocket.asyncapi.json separately for the bidirectional WebSocket protocol; Postman does not mix HTTP and WebSocket requests in one multi-protocol collection.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -14,7 +14,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-              "pm.test(\"Server responds\", function () { pm.expect(pm.response.json().status).to.eql(\"ok\"); });"
+              "pm.test(\"Server responds\", function () { const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.status).to.eql(\"ok\"); });"
             ]
           }
         }
@@ -46,7 +46,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
-              "pm.test(\"Public user returned\", function () { const body = pm.response.json(); pm.expect(body.user.id).to.be.a(\"number\"); pm.expect(body.user.email).to.eql(pm.variables.get(\"emailA\")); pm.expect(body.user).not.to.have.property(\"password_hash\"); });"
+              "pm.test(\"Public user returned\", function () { const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.id).to.be.a(\"number\"); pm.expect(body.data.email).to.eql(pm.variables.get(\"emailA\")); pm.expect(body.data).not.to.have.property(\"password_hash\"); });"
             ]
           }
         }
@@ -94,7 +94,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
-              "pm.test(\"Public user returned\", function () { const body = pm.response.json(); pm.expect(body.user.id).to.be.a(\"number\"); pm.expect(body.user.email).to.eql(pm.variables.get(\"emailB\")); pm.expect(body.user).not.to.have.property(\"password_hash\"); });"
+              "pm.test(\"Public user returned\", function () { const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.id).to.be.a(\"number\"); pm.expect(body.data.email).to.eql(pm.variables.get(\"emailB\")); pm.expect(body.data).not.to.have.property(\"password_hash\"); });"
             ]
           }
         }
@@ -143,7 +143,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test(\"Complete token response\", function () { pm.expect(body.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.refresh_token).to.be.a(\"string\").and.not.empty; pm.expect(body.expires_at).to.be.a(\"string\"); pm.expect(body.refresh_expires_at).to.be.a(\"string\"); pm.expect(new Date(body.refresh_expires_at).getTime()).to.be.above(new Date(body.expires_at).getTime()); });",
+              "pm.test(\"Complete token response\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.data.refresh_token).to.be.a(\"string\").and.not.empty; pm.expect(body.data.expires_at).to.be.a(\"string\"); pm.expect(body.data.refresh_expires_at).to.be.a(\"string\"); pm.expect(new Date(body.data.refresh_expires_at).getTime()).to.be.above(new Date(body.data.expires_at).getTime()); });",
               "pm.test(\"Token response is not cached\", function () { pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"); });"
             ]
           }
@@ -193,7 +193,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test(\"Complete token response\", function () { pm.expect(body.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.refresh_token).to.be.a(\"string\").and.not.empty; pm.expect(body.expires_at).to.be.a(\"string\"); pm.expect(body.refresh_expires_at).to.be.a(\"string\"); });"
+              "pm.test(\"Complete token response\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.data.refresh_token).to.be.a(\"string\").and.not.empty; pm.expect(body.data.expires_at).to.be.a(\"string\"); pm.expect(body.data.refresh_expires_at).to.be.a(\"string\"); });"
             ]
           }
         }
@@ -242,7 +242,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test(\"B is found\", function () { pm.expect(body.items.some(item => String(item.id) === pm.collectionVariables.get(\"userBId\"))).to.be.true; });"
+              "pm.test(\"B is found\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.some(item => String(item.id) === pm.collectionVariables.get(\"userBId\"))).to.be.true; pm.expect(body.meta.pagination).to.have.property(\"has_more\"); });"
             ]
           }
         }
@@ -289,7 +289,7 @@
             "exec": [
               "pm.test(\"New or existing chat\", function () { pm.expect([200, 201]).to.include(pm.response.code); });",
               "const body = pm.response.json();",
-              "pm.test(\"Counterpart is B\", function () { pm.expect(String(body.conversation.user.id)).to.eql(pm.collectionVariables.get(\"userBId\")); });"
+              "pm.test(\"Counterpart is B\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.user.id)).to.eql(pm.collectionVariables.get(\"userBId\")); });"
             ]
           }
         }
@@ -345,7 +345,7 @@
             "exec": [
               "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
               "const body = pm.response.json();",
-              "pm.test(\"Message belongs to A\", function () { pm.expect(String(body.message.sender_id)).to.eql(pm.collectionVariables.get(\"userAId\")); });"
+              "pm.test(\"Message belongs to A\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.sender_id)).to.eql(pm.collectionVariables.get(\"userAId\")); });"
             ]
           }
         }
@@ -401,7 +401,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-              "const items = pm.response.json();",
+              "const items = pm.response.json().data;",
               "const chat = items.find(item => String(item.id) === pm.collectionVariables.get(\"conversationId\"));",
               "pm.test(\"B has one unread message\", function () { pm.expect(chat).to.exist; pm.expect(chat.unread_count).to.eql(1); });"
             ]
@@ -444,7 +444,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test(\"Sent message appears\", function () { pm.expect(body.items.some(item => String(item.id) === pm.collectionVariables.get(\"messageId\"))).to.be.true; });"
+              "pm.test(\"Sent message appears\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.some(item => String(item.id) === pm.collectionVariables.get(\"messageId\"))).to.be.true; pm.expect(body.meta.pagination).to.have.property(\"has_more\"); });"
             ]
           }
         }
@@ -487,7 +487,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test(\"Read marker advanced\", function () { pm.expect(String(body.last_read_message_id)).to.eql(pm.collectionVariables.get(\"messageId\")); });"
+              "pm.test(\"Read marker advanced\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.last_read_message_id)).to.eql(pm.collectionVariables.get(\"messageId\")); });"
             ]
           }
         }
@@ -543,7 +543,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
-              "const items = pm.response.json();",
+              "const items = pm.response.json().data;",
               "const chat = items.find(item => String(item.id) === pm.collectionVariables.get(\"conversationId\"));",
               "pm.test(\"B has no unread messages\", function () { pm.expect(chat).to.exist; pm.expect(chat.unread_count).to.eql(0); });"
             ]
@@ -586,7 +586,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test(\"Same conversation reused\", function () { pm.expect(String(body.conversation.id)).to.eql(pm.collectionVariables.get(\"conversationId\")); });"
+              "pm.test(\"Same conversation reused\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"conversationId\")); });"
             ]
           }
         }
@@ -641,7 +641,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
-              "pm.test(\"Access-token error code\", function () { pm.expect(pm.response.json().error.code).to.eql(\"unauthenticated\"); });"
+              "pm.test(\"Access-token error code\", function () { const body = pm.response.json(); pm.expect(body.status).to.eql(\"fail\"); pm.expect(body.error.code).to.eql(\"unauthenticated\"); });"
             ]
           }
         }
@@ -675,7 +675,7 @@
             "exec": [
               "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
               "const body = pm.response.json();",
-              "pm.test(\"New access token returned\", function () { pm.expect(body.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.expires_at).to.be.a(\"string\"); pm.expect(body).not.to.have.property(\"refresh_token\"); });",
+              "pm.test(\"New access token returned\", function () { pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.access_token).to.be.a(\"string\").and.not.empty; pm.expect(body.data.expires_at).to.be.a(\"string\"); pm.expect(body.data).not.to.have.property(\"refresh_token\"); });",
               "pm.test(\"Refresh response is not cached\", function () { pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"); });"
             ]
           }
@@ -724,7 +724,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
-              "pm.test(\"Login error code\", function () { const error = pm.response.json().error; pm.expect(error.code).to.eql(\"invalid_credentials\"); pm.expect(error.message).to.eql(\"Invalid email or password.\"); });"
+              "pm.test(\"Login error code\", function () { const body = pm.response.json(); pm.expect(body.status).to.eql(\"fail\"); pm.expect(body.error.code).to.eql(\"invalid_credentials\"); pm.expect(body.error.message).to.eql(\"Invalid email or password.\"); });"
             ]
           }
         }
@@ -772,7 +772,7 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
-              "pm.test(\"Refresh error code\", function () { pm.expect(pm.response.json().error.code).to.eql(\"invalid_refresh_token\"); });"
+              "pm.test(\"Refresh error code\", function () { const body = pm.response.json(); pm.expect(body.status).to.eql(\"fail\"); pm.expect(body.error.code).to.eql(\"invalid_refresh_token\"); });"
             ]
           }
         }
@@ -813,6 +813,9 @@
     },
     {
       "name": "18 Get my private profile",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test(\"Private profile envelope\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"userAId\")); pm.expect(body.data).to.have.property(\"date_of_birth\"); pm.expect(body.data).to.have.property(\"phone_number\"); });"
+      ] } }],
       "request": {
         "method": "GET",
         "header": [],
@@ -836,6 +839,9 @@
     },
     {
       "name": "19 Get B public profile",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test(\"Public profile envelope and privacy\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"userBId\")); pm.expect(body.data).not.to.have.property(\"date_of_birth\"); pm.expect(body.data).not.to.have.property(\"phone_number\"); pm.expect(body.data).not.to.have.property(\"email\"); });"
+      ] } }],
       "request": {
         "method": "GET",
         "header": [],
@@ -859,6 +865,9 @@
     },
     {
       "name": "20 Update my private profile",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test(\"Updated private profile envelope\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.first_name).to.eql(\"An\"); pm.expect(body.data.last_name).to.eql(\"Nguyen\"); pm.expect(body.data.date_of_birth).to.eql(\"2000-01-01\"); pm.expect(body.data.phone_number).to.eql(null); });"
+      ] } }],
       "request": {
         "method": "PATCH",
         "header": [
@@ -884,8 +893,24 @@
       },
       "response": []
     }
+    ,{
+      "name": "21 Issue browser WebSocket ticket",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+        "pm.test('One-use ticket', function () { const body = pm.response.json(); pm.expect(body.status).to.eql('success'); pm.expect(body.data.ticket).to.match(/^[A-Za-z0-9_-]{43}$/); pm.expect(new Date(body.data.expires_at).getTime()).to.be.above(Date.now()); pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); });"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Origin", "value": "{{webOrigin}}" }],
+        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{tokenA}}", "type": "string" }] },
+        "url": { "raw": "{{baseUrl}}/api/ws/tickets", "host": ["{{baseUrl}}"], "path": ["api", "ws", "tickets"] },
+        "description": "Empty body required. Copy data.ticket manually into /ws?ticket=...; send the same approved Origin and omit Authorization from that browser-shaped handshake. Ticket is used once and expires within 60 seconds. Issue a fresh ticket for each attempt. Mobile Postman/Bearer flow remains available."
+      },
+      "response": []
+    }
   ],
   "variable": [
+    { "key": "webOrigin", "value": "http://localhost:5173", "description": "Must exactly match WEB_ALLOWED_ORIGINS on the backend." },
     {
       "key": "messageRequestId",
       "value": "550e8400-e29b-41d4-a716-446655440000",
@@ -912,42 +937,42 @@
     {
       "key": "tokenA",
       "value": "",
-      "description": "Copy access_token from request 04; replace it with the new value from request 15 if continuing afterward."
+      "description": "Copy data.access_token from request 04; replace it with the new value from request 15 if continuing afterward."
     },
     {
       "key": "tokenB",
       "value": "",
-      "description": "Copy access_token from request 05."
+      "description": "Copy data.access_token from request 05."
     },
     {
       "key": "refreshTokenA",
       "value": "",
-      "description": "Copy refresh_token from request 04."
+      "description": "Copy data.refresh_token from request 04."
     },
     {
       "key": "refreshTokenB",
       "value": "",
-      "description": "Copy refresh_token from request 05."
+      "description": "Copy data.refresh_token from request 05."
     },
     {
       "key": "userAId",
       "value": "",
-      "description": "Copy user.id from request 02."
+      "description": "Copy data.id from request 02."
     },
     {
       "key": "userBId",
       "value": "",
-      "description": "Copy user.id from request 03."
+      "description": "Copy data.id from request 03."
     },
     {
       "key": "conversationId",
       "value": "",
-      "description": "Copy conversation.id from request 07."
+      "description": "Copy data.id from request 07."
     },
     {
       "key": "messageId",
       "value": "",
-      "description": "Copy message.id from request 08."
+      "description": "Copy data.id from request 08."
     }
   ]
 }

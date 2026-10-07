@@ -76,11 +76,14 @@ func TestProfileHandler(t *testing.T) {
 		if w.Code != http.StatusOK || private.calls != 1 || private.userID != 7 {
 			t.Fatalf("status=%d calls=%d userID=%d body=%s", w.Code, private.calls, private.userID, w.Body.String())
 		}
-		var body map[string]map[string]any
+		var body struct {
+			Status string         `json:"status"`
+			Data   map[string]any `json:"data"`
+		}
 		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 			t.Fatal(err)
 		}
-		if body["user"]["date_of_birth"] != "2002-05-21" || body["user"]["phone_number"] != phone {
+		if body.Status != "success" || body.Data["date_of_birth"] != "2002-05-21" || body.Data["phone_number"] != phone {
 			t.Fatalf("unexpected private body: %s", w.Body.String())
 		}
 	})

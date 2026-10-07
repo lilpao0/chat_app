@@ -40,7 +40,7 @@ func (h *RefreshHandler) Handle(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOK, gin.H{
+	response.Success(c, http.StatusOK, gin.H{
 		"access_token": token.Value,
 		"expires_at":   token.ExpiresAt.UTC().Format(time.RFC3339),
 	})
