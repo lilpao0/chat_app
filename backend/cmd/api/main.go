@@ -17,6 +17,9 @@ import (
 	dataauth "github.com/lilpao0/chat_app/backend/internal/data/auth"
 	"github.com/lilpao0/chat_app/backend/internal/data/database"
 	datarepo "github.com/lilpao0/chat_app/backend/internal/data/repository"
+	"github.com/lilpao0/chat_app/backend/internal/data/storage"
+	domainrepo "github.com/lilpao0/chat_app/backend/internal/domain/repository"
+	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/attachment"
 	domainauth "github.com/lilpao0/chat_app/backend/internal/domain/usecase/auth"
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/conversation"
 	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/message"
@@ -113,27 +116,51 @@ func run() error {
 	conversations := datarepo.NewPostgresConversationRepository(db)
 	discovery := handler.NewDiscoveryHandler(user.NewSearch(users), conversation.NewOpenDirect(conversations))
 	messages := datarepo.NewPostgresMessageRepository(db)
+	mediaCfg, err := config.LoadMedia()
+	if err != nil {
+		return fmt.Errorf("load media config: %w", err)
+	}
+	var mediaStore domainrepo.MediaStorage
+	mediaFiles := datarepo.NewPostgresAttachmentRepository(db)
+	if mediaCfg.Bucket != "" {
+		mediaFiles, err = datarepo.NewPostgresMediaRepository(db, mediaCfg.SessionKey)
+		if err != nil {
+			return err
+		}
+		mediaCtx, mediaCancel := context.WithCancel(context.Background())
+		defer mediaCancel()
+		gcs, err := storage.NewGCS(mediaCtx, mediaCfg.Bucket, mediaCfg.SignerEmail, mediaCfg.FFProbe)
+		if err != nil {
+			return err
+		}
+		defer gcs.Close()
+		mediaStore = gcs
+	}
+	mediaHandler := handler.NewAttachmentHandler(attachment.NewMediaWithUploadRate(mediaFiles, mediaStore, mediaCfg.UploadsPerMinute))
 	send := message.NewSendWithPublisher(messages, presentationws.NewPublisher(conversations, hub), func(err error) { log.Printf("realtime publication: %v", err) })
 	commands.Send = send
 	commands.Read = conversation.NewMarkRead(messages)
 	presentation.RegisterProtectedRoutes(protected, presentation.ProtectedHandlers{
-		WSTicket:          handler.NewWSTicketHandler(tickets, origins),
-		SearchUsers:       discovery.Search,
-		GetPrivateProfile: profiles.GetPrivate,
-		GetPublicProfile:  profiles.GetPublic,
-		UpdateProfile:     profiles.Update,
-		OpenDirect:        discovery.OpenDirect,
-		ListConversations: handler.NewConversationsHandler(conversation.NewList(conversations)).List,
-		SendMessage:       handler.NewSendMessageHandler(send).Send,
-		MessageHistory:    handler.NewHistoryHandler(message.NewHistory(messages)).Get,
-		MarkRead:          handler.NewReadHandler(conversation.NewMarkRead(messages)).Mark,
+		WSTicket:           handler.NewWSTicketHandler(tickets, origins),
+		SearchUsers:        discovery.Search,
+		GetPrivateProfile:  profiles.GetPrivate,
+		GetPublicProfile:   profiles.GetPublic,
+		UpdateProfile:      profiles.Update,
+		OpenDirect:         discovery.OpenDirect,
+		ListConversations:  handler.NewConversationsHandler(conversation.NewList(conversations)).List,
+		SendMessage:        handler.NewSendMessageHandler(send).Send,
+		MessageHistory:     handler.NewHistoryHandler(message.NewHistory(messages)).Get,
+		MarkRead:           handler.NewReadHandler(conversation.NewMarkRead(messages)).Mark,
+		CreateAttachment:   mediaHandler.Create,
+		CompleteAttachment: mediaHandler.Complete,
+		AccessAttachment:   mediaHandler.Access,
 	})
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", httpCfg.Port),
 		Handler:      r,
 		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 45 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 

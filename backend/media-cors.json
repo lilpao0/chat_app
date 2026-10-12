@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:5173"],
+    "method": ["GET", "HEAD", "PUT", "DELETE"],
+    "responseHeader": ["Content-Type", "Content-Range", "Range", "ETag", "Content-Length"],
+    "maxAgeSeconds": 3600
+  }
+]

@@ -1,5 +1,49 @@
 # Scope, Decisions, and Assumptions
 
+## D19 - Assigned check, commit and push (2026-10-12)
+
+User explicitly authorizes review, commit and push to `backend/Bao`, then plans to create a PR into `main`. This supersedes earlier commit/push exclusions; it does not assign PR creation or merge.
+
+- Preserve user seed/debug files. Update branch from main before committing to retain its workflow relocation.
+- Reuse the existing GitHub secret, run isolated PostgreSQL/race/vet/build checks on PR/main, and submit the tested Cloud Build media pipeline only on successful main pushes. Builder identity stays separate from API runtime. Do not add broad runtime permissions or another active deployment trigger.
+- Exclude auth action credential files from Git/source archives. Exact commit SHA identifies images/fixtures; HTTP412 for a pre-existing fixture is an idempotent rerun, not permission to overwrite it. Actual GitHub deployment/caller permissions are verified when that event runs.
+
+## D18 - Assigned cloud media release (2026-10-12)
+
+User authorized steps 1–5: migrate the hosted DB, provision private GCS/IAM, deploy, check real media APIs and schedule cleanup. This supersedes D17's cloud exclusion. Frontend and commit/push remain separate.
+
+- Project `vinai-lab`, region `asia-southeast1`, existing `chat-api`/`chat-db`; private bucket `vinai-lab-chat-media`. Exact current origin is `http://localhost:5173`.
+- Successful native DB backup precedes guarded migration-history baseline and migrations 4–5. Preserve existing messages/users; live tests add dedicated fixtures. Never run isolated fixture tests against this DB.
+- API/cleanup share Secret Manager `media-session-key:1`; 2 GiB each, single API instance, cleanup batch 10 every 5 minutes using Scheduler OAuth and job-scoped invocation.
+- Approval review rejected broad deployment grants to API runtime identity. Dedicated CI receives service/job-specific deployment rights and actAs on the runtime identity. Fixture-prefix upload uses direct GCS HTTP rather than granting bucket list rights for CLI upload.
+- GCS completed resumable-session DELETE returns 200 with metadata; accept that terminal response, then delete the object generation. Signed expiry rounds to 899–900 seconds in the SDK. Both findings have runnable checks.
+- Default 7-day bucket soft delete is retained; application `deleted` does not prove immediate physical erasure. Actual browser/device playback remains unverified. See [release evidence](MEDIA_RELEASE_2026-10-12.md).
+
+## D17 - Assigned media backend upgrade (2026-10-12)
+
+The user's later direct instruction assigns completion of the whole upgrade and a final report, overriding earlier coaching-only pace. Complete backend MED-02 through MED-07 while retaining their existing entity/validation/reservation/history work. Frontend/cloud provisioning/deployment/commit/push remain separate. Earlier D15/D16 authorization boundaries below are historical, superseded for backend implementation.
+
+- Official GCS SDK v1.69.0, ADC cloud-platform scope, JSON resumable initialization with create-only precondition and known type/length; V4 canonicalization via SDK and request-bound IAM signBlob. Current storage permissions/signing/CORS must be verified in MED-08.
+- Migration000005 stores AES-GCM encrypted resumable capability, bound to ID/owner, plus cleanup claims. Stable32-byte key shared by API/job is required; rollback refuses recovery data. No automatic key rotation.
+- Native ffprobe performs MP4 inspection; stdlib decodes JPEG/PNG after pixel-budget check. Completion30s and2 concurrent inspections/process; HTTP WriteTimeout45s. These are reversible operational resource defaults, not extra product format/pixel/byte limits.
+- Issuance-rate protection defaults60/min/user/process via MEDIA_UPLOADS_PER_MINUTE; bounded4096-user rate map. Confirmed shared PostgreSQL pending cap remains10/user across conversations. No aggregate billing/multiple-instance guarantee.
+- Cleanup CLI has4-minute run budget,5-minute leases, retry-safe cancellation/delete, hourly tombstone reconciliation for8 days. Failed provider initialization without a returned session may leave an unknown provider session until expiry; no application/GCS distributed transaction.
+- Active contracts replace duplicate draft schemas. Metadata only in messages; signed URLs/session capabilities stay outside WS/history. Actual provider/client/Docker evidence remains separate from offline Go/PostgreSQL tests.
+
+## D16 - MED-02 migration portion (2026-10-09)
+
+The user first chose guided implementation, added Attachment/Message.Attachments and adapted existing struct-comparison tests, then explicitly assigned completion of all media migration work. Scope: finish 000004 up/down, isolated migration tests, fixture migration list and schema/docs; history hydration and later media runtime remain outside this assignment. Up retains <=2000 text length but relaxes nonblank DB CHECK, with the cross-table rule deferred to the atomic send path. Down holds ACCESS EXCLUSIVE locks and refuses any attachment rows or text incompatible with the original CHECK. Timestamp defaults use transaction-stable now() to maintain exact created_at +24-hour expiry. No development/cloud DB migration is implied.
+
+## U19 / D15 - MED-01 media contract (2026-10-09)
+
+- **U19 (confirmed by the user):** assign MED-01 and accept maximum 5 mixed image/video attachments/message, JPEG/PNG up to 10 MiB and 25 million pixels, MP4 H.264 with optional AAC up to 50 MiB, existing 2,000-code-point text limit, 15-minute view links, 24-hour unsent expiry and maximum 10 pending uploads/user. Source: explicit answer confirming the proposed limits; user also requested an explanation of their resource/UX effects.
+- **D15 (technical contract choices under MED-01):** existing REST/WS send receives ordered attachment_ids with optional text; one message/read boundary, private generation-bound access, idempotent completion, ordered-payload retry comparison and exact lifecycle/error mapping in [CONTRACTS section 9](CONTRACTS.md#9-media-contract). Omitted content becomes empty string; explicit null rejected. Existing REST null/omitted request_id remains unkeyed. Upload grants do not promise idempotent issuance; a lost grant may occupy a pending slot until cleanup.
+- Runtime remains text-only. Planned schemas/requests are stored in x-media-contract in existing OpenAPI/AsyncAPI/Postman artifacts, outside live paths/channels/items until implemented. MED-01 does not authorize MED-02+, frontend or cloud changes. Original bytes retain embedded metadata; transcoding/thumbnail work is deferred. U18's original planning scope remains historical; U19 authorizes this contract step and confirms previously proposed limits.
+
+## U18 - Media planning and storage (2026-10-09)
+
+Confirmed by the user: plan images/videos in chat with optional ordinary message text; store files in Google Cloud Storage. Source: direct planning request and storage-choice answer. [MEDIA_PLAN.md](MEDIA_PLAN.md) records proposed behavior and implementation steps. Authorization is planning only, not implementation, frontend edits, provisioning or deployment. Formats/limits, attachment count and lifetimes remain proposals. This expands planned scope beyond the original text MVP; runtime/contracts remain text-only until implementation is assigned.
+
 ## Current decisions - 2026-09-29
 
 **U17 (confirmed, 2026-10-07):** the user authorized completing [FLUTTER_WEB_SUPPORT_PLAN.md](FLUTTER_WEB_SUPPORT_PLAN.md). Extend U15 to Flutter Web using exact allowed origins and one-use connection tickets, preserving mobile Bearer admission and all chat frames. Frontend remains untouched; commit, push and deployment are not implied. User suggested port 5173; `http://localhost:5173` remains an assumption pending actual `location.origin` confirmation. Cloud Run URL was verified read-only; deployed acceptance is separate from local tests.

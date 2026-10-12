@@ -5,346 +5,3829 @@
     "version": "2.1.0",
     "description": "REST and bidirectional WebSocket API for registration, authentication, user discovery, direct conversations, messaging, history, and read state. Protected operations require a JWT access token."
   },
-  "servers": [{ "url": "/", "description": "Current server" }],
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current server"
+    }
+  ],
   "tags": [
-    { "name": "System" },
-    { "name": "Authentication" },
-    { "name": "Users" },
-    { "name": "Conversations" },
-    { "name": "Messages" }
+    {
+      "name": "System"
+    },
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Users"
+    },
+    {
+      "name": "Conversations"
+    },
+    {
+      "name": "Messages"
+    },
+    {
+      "name": "Attachments",
+      "description": "Private direct uploads and generation-bound access"
+    }
   ],
   "paths": {
     "/health": {
       "get": {
-        "tags": ["System"],
+        "tags": [
+          "System"
+        ],
         "summary": "Check server health",
         "operationId": "getHealth",
         "responses": {
           "200": {
             "description": "Server is healthy",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
           }
         }
       }
     },
     "/ws": {
       "get": {
-        "tags": ["Messages"],
+        "tags": [
+          "Messages"
+        ],
         "summary": "Open bidirectional realtime chat",
         "description": "Flutter Android/iOS clients send the access token in the Authorization header without Origin. Flutter Web obtains a one-use ticket from POST /api/ws/tickets and opens /ws?ticket=... from an approved Origin without Authorization. See docs/FLUTTER_WEB_TESTING.md. Send send_message/mark_read commands with a canonical UUID request_id and data. Receive message_sent/read_updated/error replies plus new_message broadcasts. Durable keyed retries prevent duplicate persistence. See docs/WEBSOCKET_PLAN.md. REST history remains the reconnect recovery path. Open the socket and buffer events before fetching all pages from the last completed REST checkpoint (not the largest live-event ID). Merge by message ID. Swagger UI Try it out sends HTTP only and is not a WebSocket command client. See the WS schemas below; x-websocket is a documentation extension, not an HTTP response body. Example text command: {\"type\":\"send_message\",\"request_id\":\"550e8400-e29b-41d4-a716-446655440000\",\"data\":{\"conversation_id\":10,\"content\":\"Hello\"}}. Retrying the same sender/key and identical data returns the original message without broadcasting again; conflicting reuse produces request_conflict. Acknowledgement/event order is unspecified. Binary closes with 1003, oversized messages with 1009, expiry/queue/rate violations with 1008; shutdown uses 1001 where possible.",
         "operationId": "openRealtimeStream",
-        "x-websocket": { "clientMessages": [{"$ref":"#/components/schemas/WSSendMessageCommand"},{"$ref":"#/components/schemas/WSMarkReadCommand"}], "serverMessages": [{"$ref":"#/components/schemas/WSMessageSent"},{"$ref":"#/components/schemas/WSReadUpdated"},{"$ref":"#/components/schemas/WSNewMessage"},{"$ref":"#/components/schemas/WSError"}] },
-        "security": [{ "bearerAuth": [] }, { "wsTicket": [] }],
-        "parameters": [{ "name": "ticket", "in": "query", "schema": { "type": "string", "minLength": 43, "maxLength": 43, "pattern": "^[A-Za-z0-9_-]{43}$" }, "description": "Browser only: one-use ticket from POST /api/ws/tickets. Browser supplies an approved Origin automatically; do not combine ticket and Authorization. Ticket expires within 60 seconds; every connection attempt needs a new ticket. Socket lifetime follows the original access token. Raw JWT query transport is rejected." }],
+        "x-websocket": {
+          "clientMessages": [
+            {
+              "$ref": "#/components/schemas/WSSendMessageCommand"
+            },
+            {
+              "$ref": "#/components/schemas/WSMarkReadCommand"
+            }
+          ],
+          "serverMessages": [
+            {
+              "$ref": "#/components/schemas/WSMessageSent"
+            },
+            {
+              "$ref": "#/components/schemas/WSReadUpdated"
+            },
+            {
+              "$ref": "#/components/schemas/WSNewMessage"
+            },
+            {
+              "$ref": "#/components/schemas/WSError"
+            }
+          ]
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "wsTicket": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 43,
+              "maxLength": 43,
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            },
+            "description": "Browser only: one-use ticket from POST /api/ws/tickets. Browser supplies an approved Origin automatically; do not combine ticket and Authorization. Ticket expires within 60 seconds; every connection attempt needs a new ticket. Socket lifetime follows the original access token. Raw JWT query transport is rejected."
+          }
+        ],
         "responses": {
-          "101": { "description": "WebSocket protocol upgrade accepted" },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "description": "Mobile: unauthenticated. Browser: invalid_ws_ticket for missing/expired/used/wrong-origin ticket. Browser WebSocket does not expose this HTTP JSON; obtain a new ticket before retrying.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "invalid_ws_ticket", "message": "A valid WebSocket ticket is required." } } } } },
-          "403": { "description": "Origin is invalid or absent from WEB_ALLOWED_ORIGINS. CORS middleware may reject first with a bodyless response.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "origin_not_allowed", "message": "Web origin is not allowed." } } } } }
+          "101": {
+            "description": "WebSocket protocol upgrade accepted"
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "description": "Mobile: unauthenticated. Browser: invalid_ws_ticket for missing/expired/used/wrong-origin ticket. Browser WebSocket does not expose this HTTP JSON; obtain a new ticket before retrying.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "fail",
+                  "error": {
+                    "code": "invalid_ws_ticket",
+                    "message": "A valid WebSocket ticket is required."
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin is invalid or absent from WEB_ALLOWED_ORIGINS. CORS middleware may reject first with a bodyless response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "fail",
+                  "error": {
+                    "code": "origin_not_allowed",
+                    "message": "Web origin is not allowed."
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
     "/api/ws/tickets": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "Issue a one-use browser WebSocket ticket",
         "description": "Send a valid access Bearer token, a single approved Origin and no request body. Generates an opaque ticket bound to identity and Origin, expiring at min(now+60s, access expiry). Limits: 8 outstanding tickets per user and 4096 per API process. Used, expired and restart-lost tickets require fresh issuance. The browser sends Origin automatically. Use HTTPS/WSS outside local development; redact ticket query strings in proxy logs. Refresh access token if issuance returns 401; invalid refresh requires login again. See docs/FLUTTER_WEB_TESTING.md.",
         "operationId": "issueWebSocketTicket",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
-          "201": { "description": "Ticket issued", "headers": { "Cache-Control": { "schema": { "type": "string", "example": "no-store" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WSTicketResponse" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "403": { "description": "Origin must be present and approved", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "429": { "description": "Pending-ticket capacity reached", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "rate_limited", "message": "Too many pending WebSocket tickets." } } } } },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "201": {
+            "description": "Ticket issued",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WSTicketResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "description": "Origin must be present and approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Pending-ticket capacity reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "fail",
+                  "error": {
+                    "code": "rate_limited",
+                    "message": "Too many pending WebSocket tickets."
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/auth/register": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "Register an account",
         "operationId": "register",
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterRequest" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
         },
         "responses": {
-          "201": { "description": "Account created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserResponse" } } } },
-          "400": { "$ref": "#/components/responses/RegistrationInvalidInput" },
-          "409": { "description": "Email is already in use", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "email_taken", "message": "Email is already in use." } } } } },
-          "413": { "$ref": "#/components/responses/PayloadTooLarge" },
-          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "201": {
+            "description": "Account created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/RegistrationInvalidInput"
+          },
+          "409": {
+            "description": "Email is already in use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "fail",
+                  "error": {
+                    "code": "email_taken",
+                    "message": "Email is already in use."
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/auth/login": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "Log in",
         "operationId": "login",
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
         },
         "responses": {
-          "200": { "description": "Authenticated", "headers": { "Cache-Control": { "schema": { "type": "string", "example": "no-store" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "description": "Email does not exist or password is incorrect; both cases intentionally return the same response", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "invalid_credentials", "message": "Invalid email or password." } } } } },
-          "413": { "$ref": "#/components/responses/PayloadTooLarge" },
-          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Authenticated",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "description": "Email does not exist or password is incorrect; both cases intentionally return the same response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "fail",
+                  "error": {
+                    "code": "invalid_credentials",
+                    "message": "Invalid email or password."
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/auth/refresh": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "Create a new access token",
         "description": "Accepts an unexpired refresh token. This simple MVP does not rotate or revoke refresh tokens.",
         "operationId": "refreshAccessToken",
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshRequest" } } }
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          }
         },
         "responses": {
-          "200": { "description": "New access token issued", "headers": { "Cache-Control": { "schema": { "type": "string", "example": "no-store" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RefreshResponse" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "description": "Invalid or expired refresh token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "invalid_refresh_token", "message": "A valid refresh token is required." } } } } },
-          "413": { "$ref": "#/components/responses/PayloadTooLarge" },
-          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "New access token issued",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "description": "Invalid or expired refresh token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "fail",
+                  "error": {
+                    "code": "invalid_refresh_token",
+                    "message": "A valid refresh token is required."
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/users": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Search users",
         "description": "Searches a literal name substring or an exact email, excludes the authenticated user, and orders results by ascending user ID.",
         "operationId": "searchUsers",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "q", "in": "query", "required": true, "description": "Trimmed search text (2-254 Unicode code points)", "schema": { "type": "string", "minLength": 2, "maxLength": 254 }, "example": "an" },
-          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } },
-          { "name": "after_id", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/PositiveID" } }
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Trimmed search text (2-254 Unicode code points)",
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 254
+            },
+            "example": "an"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "after_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PositiveID"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Search result page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserSearchPage" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Search result page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSearchPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/users/me": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Get my private profile",
         "operationId": "getPrivateProfile",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Authenticated user's private profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PrivateProfileResponse" } } } },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "404": { "description": "Active user not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Authenticated user's private profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Active user not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       },
       "patch": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Update my private profile",
         "description": "Updates a nonempty subset of editable fields. Omitted fields are unchanged; date_of_birth and phone_number may be cleared with null. Email and avatar are not editable.",
         "operationId": "updatePrivateProfile",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateProfileRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Updated private profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PrivateProfileResponse" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "404": { "description": "Active user not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "409": { "description": "Phone number is already in use", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "phone_number_taken", "message": "Phone number is already in use." } } } } },
-          "413": { "$ref": "#/components/responses/PayloadTooLarge" },
-          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Updated private profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Active user not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Phone number is already in use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "status": "fail",
+                  "error": {
+                    "code": "phone_number_taken",
+                    "message": "Phone number is already in use."
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/users/{id}": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "Get a public user profile",
         "description": "Always returns the public representation, including when id belongs to the authenticated caller.",
         "operationId": "getPublicProfile",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/PositiveID" } }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PositiveID"
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Public user profile", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PublicProfileResponse" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "404": { "description": "Active user not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Public user profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Active user not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/conversations/direct": {
       "post": {
-        "tags": ["Conversations"],
+        "tags": [
+          "Conversations"
+        ],
         "summary": "Open or reuse a direct conversation",
         "operationId": "openDirectConversation",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OpenDirectRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenDirectRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Existing conversation returned", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DirectConversationResponse" } } } },
-          "201": { "description": "New conversation created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DirectConversationResponse" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "404": { "description": "Target user not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "413": { "$ref": "#/components/responses/PayloadTooLarge" },
-          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Existing conversation returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectConversationResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "New conversation created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectConversationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "Target user not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/conversations": {
       "get": {
-        "tags": ["Conversations"],
+        "tags": [
+          "Conversations"
+        ],
         "summary": "List the authenticated user's conversations",
         "operationId": "listConversations",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Conversations ordered by latest activity", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConversationListResponse" } } } },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Conversations ordered by latest activity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       }
     },
     "/api/conversations/{id}/messages": {
-      "parameters": [{ "$ref": "#/components/parameters/ConversationID" }],
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ConversationID"
+        }
+      ],
       "get": {
-        "tags": ["Messages"],
+        "tags": [
+          "Messages"
+        ],
         "summary": "Get message history",
         "description": "Without a cursor or with before_id, messages are newest-first. With after_id, messages are oldest-first. before_id and after_id are mutually exclusive.",
         "operationId": "getMessageHistory",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
-          { "name": "before_id", "in": "query", "schema": { "$ref": "#/components/schemas/PositiveID" }, "description": "Return messages with smaller IDs" },
-          { "name": "after_id", "in": "query", "schema": { "$ref": "#/components/schemas/PositiveID" }, "description": "Return messages with larger IDs" },
-          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+          {
+            "name": "before_id",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/PositiveID"
+            },
+            "description": "Return messages with smaller IDs"
+          },
+          {
+            "name": "after_id",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/PositiveID"
+            },
+            "description": "Return messages with larger IDs"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Message page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessagePage" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "404": { "$ref": "#/components/responses/ConversationNotFound" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Message page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "$ref": "#/components/responses/ConversationNotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
         }
       },
       "post": {
-        "tags": ["Messages"],
-        "summary": "Send a text message",
-        "description": "Persists and commits the message before returning it. Retrying a request can create a duplicate message.",
+        "tags": [
+          "Messages"
+        ],
+        "summary": "Send text and/or ordered media",
+        "description": "All attachment bindings commit with one message. Identical sender/request_id retry compares conversation, original text and ordered IDs, returns original without publication. Omitted content is empty; explicit null is invalid.",
         "operationId": "sendMessage",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SendMessageRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendMessageRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "409": { "description": "Request ID already used for different conversation/content", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "201": { "description": "Message committed or keyed retry returned", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MessageResponse" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "404": { "$ref": "#/components/responses/ConversationNotFound" },
-          "413": { "$ref": "#/components/responses/PayloadTooLarge" },
-          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
-          "500": { "$ref": "#/components/responses/InternalError" }
-        }
+          "201": {
+            "description": "Send text and/or ordered media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_input: Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_input": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "invalid_input",
+                        "message": "Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthenticated: Refresh backend access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthenticated": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "unauthenticated",
+                        "message": "Refresh backend access token."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "not_found",
+                        "message": "Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "attachment_not_ready: Finish upload and completion; no message created.; attachment_unavailable: Failed/deleting/deleted/already-bound file outside identical replay; remove or reupload.; request_conflict: Changed conversation/content/ordered attachment IDs with existing sender/request_id.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "attachment_not_ready": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "attachment_not_ready",
+                        "message": "Finish upload and completion; no message created."
+                      }
+                    }
+                  },
+                  "attachment_unavailable": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "attachment_unavailable",
+                        "message": "Failed/deleting/deleted/already-bound file outside identical replay; remove or reupload."
+                      }
+                    }
+                  },
+                  "request_conflict": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "request_conflict",
+                        "message": "Changed conversation/content/ordered attachment IDs with existing sender/request_id."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "attachment_expired: Expired pending file; obtain new grant. Attached files are not subject to unsent expiry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "attachment_expired": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "attachment_expired",
+                        "message": "Expired pending file; obtain new grant. Attached files are not subject to unsent expiry."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "payload_too_large: Backend JSON exceeds existing 16 KiB limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "payload_too_large": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "payload_too_large",
+                        "message": "Backend JSON exceeds existing 16 KiB limit."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "unsupported_media_type: Wrong backend Content-Type or unsupported declared/detected format/codec/track layout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unsupported_media_type": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "unsupported_media_type",
+                        "message": "Wrong backend Content-Type or unsupported declared/detected format/codec/track layout."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal_error: Internal DB/configuration/tool failure; no internals exposed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "status": "error",
+                      "error": {
+                        "code": "internal_error",
+                        "message": "Internal DB/configuration/tool failure; no internals exposed."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ConversationID"
+          }
+        ]
       }
     },
     "/api/conversations/{id}/read": {
       "post": {
-        "tags": ["Messages"],
+        "tags": [
+          "Messages"
+        ],
         "summary": "Advance the read position",
         "description": "The marker never moves backward. The response contains the effective marker, which can be ahead of the submitted marker.",
         "operationId": "markConversationRead",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "$ref": "#/components/parameters/ConversationID" }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MarkReadRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ConversationID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkReadRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Effective read position", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MarkReadResponse" } } } },
-          "400": { "$ref": "#/components/responses/InvalidInput" },
-          "401": { "$ref": "#/components/responses/Unauthenticated" },
-          "404": { "$ref": "#/components/responses/ConversationNotFound" },
-          "413": { "$ref": "#/components/responses/PayloadTooLarge" },
-          "415": { "$ref": "#/components/responses/UnsupportedMediaType" },
-          "500": { "$ref": "#/components/responses/InternalError" }
+          "200": {
+            "description": "Effective read position",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkReadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/InvalidInput"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "$ref": "#/components/responses/ConversationNotFound"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/conversations/{id}/attachments": {
+      "post": {
+        "operationId": "createAttachment",
+        "summary": "Issue direct resumable upload grant",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Attachments"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ConversationID"
+          }
+        ],
+        "description": "Requires current conversation membership. Session/access URLs are bearer capabilities: never log or put them in messages. Storage disabled or transient failure returns 503. See docs/MEDIA_SETUP.md for configuration and upload recovery.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Issue direct resumable upload grant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                },
+                "description": "Do not cache capability responses"
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_input: Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_input": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "invalid_input",
+                        "message": "Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthenticated: Refresh backend access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthenticated": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "unauthenticated",
+                        "message": "Refresh backend access token."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "not_found",
+                        "message": "Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "media_too_large: Declared/actual bytes exceed file limit; reduce file.; payload_too_large: Backend JSON exceeds existing 16 KiB limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "media_too_large": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "media_too_large",
+                        "message": "Declared/actual bytes exceed file limit; reduce file."
+                      }
+                    }
+                  },
+                  "payload_too_large": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "payload_too_large",
+                        "message": "Backend JSON exceeds existing 16 KiB limit."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "unsupported_media_type: Wrong backend Content-Type or unsupported declared/detected format/codec/track layout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unsupported_media_type": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "unsupported_media_type",
+                        "message": "Wrong backend Content-Type or unsupported declared/detected format/codec/track layout."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "upload_limit_exceeded: Pending cap; send ready drafts or wait. Retry-After seconds until earliest pending expiry.; rate_limited: Upload issuance rate exceeded; Retry-After: 60 seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "upload_limit_exceeded": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "upload_limit_exceeded",
+                        "message": "Pending cap; send ready drafts or wait. Retry-After seconds until earliest pending expiry."
+                      }
+                    }
+                  },
+                  "rate_limited": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "rate_limited",
+                        "message": "Upload issuance rate exceeded; Retry-After: 60 seconds."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until next allowed attempt",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal_error: Internal DB/configuration/tool failure; no internals exposed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "status": "error",
+                      "error": {
+                        "code": "internal_error",
+                        "message": "Internal DB/configuration/tool failure; no internals exposed."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "storage_unavailable: Transient storage/inspection I/O or timeout; retry with bounded backoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorResponse"
+                },
+                "examples": {
+                  "storage_unavailable": {
+                    "value": {
+                      "status": "error",
+                      "error": {
+                        "code": "storage_unavailable",
+                        "message": "Transient storage/inspection I/O or timeout; retry with bounded backoff."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attachments/{id}/complete": {
+      "post": {
+        "operationId": "completeAttachment",
+        "summary": "Validate uploaded media",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Attachments"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AttachmentID"
+          }
+        ],
+        "description": "Requires current conversation membership. Session/access URLs are bearer capabilities: never log or put them in messages. Storage disabled or transient failure returns 503. See docs/MEDIA_SETUP.md for configuration and upload recovery.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validate uploaded media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompleteResponse"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                },
+                "description": "Do not cache capability responses"
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_input: Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_input": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "invalid_input",
+                        "message": "Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthenticated: Refresh backend access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthenticated": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "unauthenticated",
+                        "message": "Refresh backend access token."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "not_found",
+                        "message": "Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "attachment_not_ready: Finish upload and completion; no message created.; attachment_unavailable: Failed/deleting/deleted/already-bound file outside identical replay; remove or reupload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "attachment_not_ready": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "attachment_not_ready",
+                        "message": "Finish upload and completion; no message created."
+                      }
+                    }
+                  },
+                  "attachment_unavailable": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "attachment_unavailable",
+                        "message": "Failed/deleting/deleted/already-bound file outside identical replay; remove or reupload."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "attachment_expired: Expired pending file; obtain new grant. Attached files are not subject to unsent expiry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "attachment_expired": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "attachment_expired",
+                        "message": "Expired pending file; obtain new grant. Attached files are not subject to unsent expiry."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "media_too_large: Declared/actual bytes exceed file limit; reduce file.; payload_too_large: Backend JSON exceeds existing 16 KiB limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "media_too_large": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "media_too_large",
+                        "message": "Declared/actual bytes exceed file limit; reduce file."
+                      }
+                    }
+                  },
+                  "payload_too_large": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "payload_too_large",
+                        "message": "Backend JSON exceeds existing 16 KiB limit."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "unsupported_media_type: Wrong backend Content-Type or unsupported declared/detected format/codec/track layout.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unsupported_media_type": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "unsupported_media_type",
+                        "message": "Wrong backend Content-Type or unsupported declared/detected format/codec/track layout."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_media: Malformed file, bad dimensions/pixel budget or allowed declaration differs from actual bytes/type/length.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_media": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "invalid_media",
+                        "message": "Malformed file, bad dimensions/pixel budget or allowed declaration differs from actual bytes/type/length."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal_error: Internal DB/configuration/tool failure; no internals exposed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "status": "error",
+                      "error": {
+                        "code": "internal_error",
+                        "message": "Internal DB/configuration/tool failure; no internals exposed."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "storage_unavailable: Transient storage/inspection I/O or timeout; retry with bounded backoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorResponse"
+                },
+                "examples": {
+                  "storage_unavailable": {
+                    "value": {
+                      "status": "error",
+                      "error": {
+                        "code": "storage_unavailable",
+                        "message": "Transient storage/inspection I/O or timeout; retry with bounded backoff."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/attachments/{id}/access": {
+      "get": {
+        "operationId": "accessAttachment",
+        "summary": "Issue private media access URL",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Attachments"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/AttachmentID"
+          }
+        ],
+        "description": "Requires current conversation membership. Session/access URLs are bearer capabilities: never log or put them in messages. Storage disabled or transient failure returns 503. See docs/MEDIA_SETUP.md for configuration and upload recovery.",
+        "responses": {
+          "200": {
+            "description": "Issue private media access URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessResponse"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                },
+                "description": "Do not cache capability responses"
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_input: Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "invalid_input": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "invalid_input",
+                        "message": "Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthenticated: Refresh backend access token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "unauthenticated": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "unauthenticated",
+                        "message": "Refresh backend access token."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "not_found: Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "not_found": {
+                    "value": {
+                      "status": "fail",
+                      "error": {
+                        "code": "not_found",
+                        "message": "Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "internal_error: Internal DB/configuration/tool failure; no internals exposed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorResponse"
+                },
+                "examples": {
+                  "internal_error": {
+                    "value": {
+                      "status": "error",
+                      "error": {
+                        "code": "internal_error",
+                        "message": "Internal DB/configuration/tool failure; no internals exposed."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "storage_unavailable: Transient storage/inspection I/O or timeout; retry with bounded backoff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorResponse"
+                },
+                "examples": {
+                  "storage_unavailable": {
+                    "value": {
+                      "status": "error",
+                      "error": {
+                        "code": "storage_unavailable",
+                        "message": "Transient storage/inspection I/O or timeout; retry with bounded backoff."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
   },
   "components": {
     "securitySchemes": {
-      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT", "description": "Paste data.access_token returned by login. Browser REST uses this header; mobile WebSocket uses it without Origin." },
-      "wsTicket": { "type": "apiKey", "in": "query", "name": "ticket", "description": "Browser WebSocket only. Obtain a fresh one-use ticket with Bearer through POST /api/ws/tickets, then connect /ws?ticket=... from an approved Origin." }
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Paste data.access_token returned by login. Browser REST uses this header; mobile WebSocket uses it without Origin."
+      },
+      "wsTicket": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "ticket",
+        "description": "Browser WebSocket only. Obtain a fresh one-use ticket with Bearer through POST /api/ws/tickets, then connect /ws?ticket=... from an approved Origin."
+      }
     },
     "parameters": {
-      "ConversationID": { "name": "id", "in": "path", "required": true, "description": "Conversation ID", "schema": { "$ref": "#/components/schemas/PositiveID" } }
+      "ConversationID": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Conversation ID",
+        "schema": {
+          "$ref": "#/components/schemas/PositiveID"
+        }
+      },
+      "AttachmentID": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Attachment ID",
+        "schema": {
+          "$ref": "#/components/schemas/PositiveID"
+        }
+      }
     },
     "responses": {
-      "RegistrationInvalidInput": { "description": "Malformed JSON or a registration field failed validation", "content": { "application/json": { "schema": { "oneOf": [{ "$ref": "#/components/schemas/ErrorResponse" }, { "$ref": "#/components/schemas/RegisterErrorResponse" }] }, "example": { "status": "fail", "error": { "code": "invalid_input", "message": "The submitted information is invalid.", "details": [{ "field": "email", "code": "invalid_email", "message": "Email is invalid" }] } } } } },
-      "InvalidInput": { "description": "Invalid path, query, or JSON input", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "invalid_input", "message": "The submitted information is invalid." } } } } },
-      "Unauthenticated": { "description": "Missing, malformed, invalid, or expired access token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "unauthenticated", "message": "A valid access token is required." } } } } },
-      "ConversationNotFound": { "description": "Conversation does not exist or the caller is not a member", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "not_found", "message": "Conversation not found." } } } } },
-      "PayloadTooLarge": { "description": "JSON body exceeds 16 KiB", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "payload_too_large", "message": "Request body is too large." } } } } },
-      "UnsupportedMediaType": { "description": "Content-Type is not application/json", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "status": "fail", "error": { "code": "unsupported_media_type", "message": "Use application/json." } } } } },
-      "InternalError": { "description": "Unexpected server error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InternalErrorResponse" }, "example": { "status": "error", "error": { "code": "internal_error", "message": "Unable to complete the request." } } } } }
+      "RegistrationInvalidInput": {
+        "description": "Malformed JSON or a registration field failed validation",
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/RegisterErrorResponse"
+                }
+              ]
+            },
+            "example": {
+              "status": "fail",
+              "error": {
+                "code": "invalid_input",
+                "message": "The submitted information is invalid.",
+                "details": [
+                  {
+                    "field": "email",
+                    "code": "invalid_email",
+                    "message": "Email is invalid"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "InvalidInput": {
+        "description": "Invalid path, query, or JSON input",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "error": {
+                "code": "invalid_input",
+                "message": "The submitted information is invalid."
+              }
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "Missing, malformed, invalid, or expired access token",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "error": {
+                "code": "unauthenticated",
+                "message": "A valid access token is required."
+              }
+            }
+          }
+        }
+      },
+      "ConversationNotFound": {
+        "description": "Conversation does not exist or the caller is not a member",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "error": {
+                "code": "not_found",
+                "message": "Conversation not found."
+              }
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "JSON body exceeds 16 KiB",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "error": {
+                "code": "payload_too_large",
+                "message": "Request body is too large."
+              }
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "Content-Type is not application/json",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "status": "fail",
+              "error": {
+                "code": "unsupported_media_type",
+                "message": "Use application/json."
+              }
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Unexpected server error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/InternalErrorResponse"
+            },
+            "example": {
+              "status": "error",
+              "error": {
+                "code": "internal_error",
+                "message": "Unable to complete the request."
+              }
+            }
+          }
+        }
+      }
     },
     "schemas": {
-      "WSRequestID": {"type":"string","format":"uuid","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$","example":"550e8400-e29b-41d4-a716-446655440000"},
-      "WSSendMessageCommand": {"type":"object","additionalProperties":false,"required":["type","request_id","data"],"properties":{"type":{"type":"string","enum":["send_message"]},"request_id":{"$ref":"#/components/schemas/WSRequestID"},"data":{"type":"object","additionalProperties":false,"required":["conversation_id","content"],"properties":{"conversation_id":{"$ref":"#/components/schemas/PositiveID"},"content":{"type":"string","minLength":1,"maxLength":2000,"description":"Valid UTF-8, no NUL, nonblank; original whitespace preserved."}}}}},
-      "WSMarkReadCommand": {"type":"object","additionalProperties":false,"required":["type","request_id","data"],"properties":{"type":{"type":"string","enum":["mark_read"]},"request_id":{"$ref":"#/components/schemas/WSRequestID"},"data":{"type":"object","additionalProperties":false,"required":["conversation_id","last_read_message_id"],"properties":{"conversation_id":{"$ref":"#/components/schemas/PositiveID"},"last_read_message_id":{"$ref":"#/components/schemas/PositiveID"}}}}},
-      "WSMessageSent": {"type":"object","additionalProperties":false,"required":["type","request_id","data"],"properties":{"type":{"type":"string","enum":["message_sent"]},"request_id":{"$ref":"#/components/schemas/WSRequestID"},"data":{"$ref":"#/components/schemas/Message"}}},
-      "WSReadUpdated": {"type":"object","additionalProperties":false,"required":["type","request_id","data"],"properties":{"type":{"type":"string","enum":["read_updated"]},"request_id":{"$ref":"#/components/schemas/WSRequestID"},"data":{"type":"object","additionalProperties":false,"required":["conversation_id","last_read_message_id"],"properties":{"conversation_id":{"$ref":"#/components/schemas/PositiveID"},"last_read_message_id":{"$ref":"#/components/schemas/PositiveID"}}}}},
-      "WSNewMessage": {"type":"object","additionalProperties":false,"required":["type","data"],"properties":{"type":{"type":"string","enum":["new_message"]},"data":{"$ref":"#/components/schemas/Message"}}},
-      "WSError": {"type":"object","additionalProperties":false,"required":["type","request_id","error"],"properties":{"type":{"type":"string","enum":["error"]},"request_id":{"type":"string","format":"uuid","pattern":"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$","example":"550e8400-e29b-41d4-a716-446655440000","nullable":true,"description":"Null when correlation could not be validated or for a connection-level rate error."},"error":{"type":"object","additionalProperties":false,"required":["code","message"],"properties":{"code":{"type":"string","enum":["invalid_input","unsupported_command","not_found","request_conflict","rate_limited","internal_error"]},"message":{"type":"string"}}}}},
-      "PositiveID": { "type": "integer", "format": "int64", "minimum": 1, "example": 10 },
-      "WSTicketResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "type": "object", "required": ["ticket", "expires_at"], "properties": { "ticket": { "type": "string", "minLength": 43, "maxLength": 43, "pattern": "^[A-Za-z0-9_-]{43}$" }, "expires_at": { "type": "string", "format": "date-time" } } } } },
-      "HealthResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["ok"] } } } } },
-      "Error": { "type": "object", "required": ["code", "message"], "properties": { "code": { "type": "string", "example": "invalid_input" }, "message": { "type": "string", "example": "The submitted information is invalid." } } },
-      "ErrorResponse": { "type": "object", "required": ["status", "error"], "properties": { "status": { "type": "string", "enum": ["fail"] }, "error": { "$ref": "#/components/schemas/Error" } } },
-      "InternalErrorResponse": { "type": "object", "required": ["status", "error"], "properties": { "status": { "type": "string", "enum": ["error"] }, "error": { "$ref": "#/components/schemas/Error" } } },
-      "FieldError": { "type": "object", "required": ["field", "code", "message"], "properties": { "field": { "type": "string", "enum": ["first_name", "last_name", "email", "password"] }, "code": { "type": "string", "enum": ["required", "too_long", "invalid_characters", "invalid_email", "too_short", "invalid_input"] }, "message": { "type": "string" } } },
-      "RegisterValidationError": { "type": "object", "required": ["code", "message", "details"], "properties": { "code": { "type": "string", "enum": ["invalid_input"] }, "message": { "type": "string", "enum": ["The submitted information is invalid."] }, "details": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/FieldError" } } } },
-      "RegisterErrorResponse": { "type": "object", "required": ["status", "error"], "properties": { "status": { "type": "string", "enum": ["fail"] }, "error": { "$ref": "#/components/schemas/RegisterValidationError" } } },
-      "User": { "type": "object", "required": ["id", "name", "email", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "name": { "type": "string", "example": "An Nguyen" }, "email": { "type": "string", "format": "email", "example": "an@example.com" }, "avatar_url": { "type": "string", "example": "https://clipart-library.com/img/1816203.png" } } },
-      "Participant": { "type": "object", "required": ["id", "name", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "name": { "type": "string", "example": "Binh Tran" }, "avatar_url": { "type": "string", "example": "https://clipart-library.com/img/1816203.png" } } },
-      "PrivateProfile": { "type": "object", "required": ["id", "first_name", "last_name", "name", "date_of_birth", "phone_number", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "first_name": { "type": "string", "example": "Pao" }, "last_name": { "type": "string", "example": "Nguyen" }, "name": { "type": "string", "example": "Pao Nguyen" }, "date_of_birth": { "type": "string", "format": "date", "nullable": true, "example": "2002-05-21" }, "phone_number": { "type": "string", "pattern": "^\\+[0-9]{7,15}$", "nullable": true, "example": "+84901234567" }, "avatar_url": { "type": "string", "example": "https://clipart-library.com/img/1816203.png" } } },
-      "PublicProfile": { "type": "object", "required": ["id", "name", "avatar_url"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "name": { "type": "string", "example": "Pao Nguyen" }, "avatar_url": { "type": "string", "example": "https://clipart-library.com/img/1816203.png" } } },
-      "PrivateProfileResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "$ref": "#/components/schemas/PrivateProfile" } } },
-      "PublicProfileResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "$ref": "#/components/schemas/PublicProfile" } } },
-      "UpdateProfileRequest": { "type": "object", "additionalProperties": false, "minProperties": 1, "properties": { "first_name": { "type": "string", "minLength": 1, "maxLength": 100, "description": "Trimmed before storage; must not be null" }, "last_name": { "type": "string", "maxLength": 100, "description": "Trimmed before storage; may be empty but must not be null" }, "date_of_birth": { "type": "string", "format": "date", "nullable": true, "description": "Must not be later than the current date; null clears the field" }, "phone_number": { "type": "string", "pattern": "^\\+[0-9]{7,15}$", "nullable": true, "description": "Unique E.164 value; null clears the field" } } },
-      "RegisterRequest": { "type": "object", "additionalProperties": false, "required": ["first_name", "email", "password"], "properties": { "first_name": { "type": "string", "minLength": 1, "maxLength": 100, "description": "Trimmed before storage; must contain 1-100 Unicode code points, valid UTF-8, and no NUL", "example": "An" }, "last_name": { "type": "string", "maxLength": 100, "description": "Optional and trimmed before storage; when present must contain at most 100 Unicode code points, valid UTF-8, and no NUL", "example": "Nguyen" }, "email": { "type": "string", "format": "email", "description": "Trimmed and lowercased; must be a plain address without a display name and at most 254 UTF-8 bytes", "example": "an@example.com" }, "password": { "type": "string", "format": "password", "minLength": 8, "description": "Not trimmed or modified; must contain at least 8 Unicode code points, at most 72 UTF-8 bytes, valid UTF-8, and no NUL", "writeOnly": true, "example": "password123" } } },
-      "LoginRequest": { "type": "object", "additionalProperties": false, "required": ["email", "password"], "properties": { "email": { "type": "string", "format": "email", "description": "Trimmed and lowercased before lookup", "example": "an@example.com" }, "password": { "type": "string", "format": "password", "minLength": 8, "description": "Not trimmed; same 8 Unicode code point and 72 UTF-8 byte limits as registration", "writeOnly": true, "example": "password123" } } },
-      "UserResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "$ref": "#/components/schemas/User" } } },
-      "LoginData": { "type": "object", "required": ["user", "access_token", "expires_at", "refresh_token", "refresh_expires_at"], "properties": { "user": { "$ref": "#/components/schemas/User" }, "access_token": { "type": "string", "description": "JWT access token" }, "expires_at": { "type": "string", "format": "date-time" }, "refresh_token": { "type": "string", "description": "JWT refresh token", "writeOnly": true }, "refresh_expires_at": { "type": "string", "format": "date-time" } } },
-      "LoginResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "$ref": "#/components/schemas/LoginData" } } },
-      "RefreshRequest": { "type": "object", "additionalProperties": false, "required": ["refresh_token"], "properties": { "refresh_token": { "type": "string", "minLength": 1, "description": "Refresh token returned by login", "writeOnly": true } } },
-      "RefreshData": { "type": "object", "required": ["access_token", "expires_at"], "properties": { "access_token": { "type": "string", "description": "New JWT access token" }, "expires_at": { "type": "string", "format": "date-time" } } },
-      "RefreshResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "$ref": "#/components/schemas/RefreshData" } } },
-      "ForwardPagination": { "type": "object", "required": ["has_more", "next_after_id"], "properties": { "has_more": { "type": "boolean" }, "next_after_id": { "allOf": [{ "$ref": "#/components/schemas/PositiveID" }], "nullable": true } } },
-      "UserSearchPage": { "type": "object", "required": ["status", "data", "meta"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "type": "array", "items": { "$ref": "#/components/schemas/Participant" } }, "meta": { "type": "object", "required": ["pagination"], "properties": { "pagination": { "$ref": "#/components/schemas/ForwardPagination" } } } } },
-      "OpenDirectRequest": { "type": "object", "additionalProperties": false, "required": ["user_id"], "properties": { "user_id": { "$ref": "#/components/schemas/PositiveID" } } },
-      "DirectConversation": { "type": "object", "required": ["id", "user"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "user": { "$ref": "#/components/schemas/Participant" } } },
-      "DirectConversationResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "$ref": "#/components/schemas/DirectConversation" } } },
-      "ConversationSummary": { "type": "object", "required": ["id", "user", "last_message", "last_message_at", "unread_count"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "user": { "$ref": "#/components/schemas/Participant" }, "last_message": { "type": "string", "nullable": true, "example": "Hello" }, "last_message_at": { "type": "string", "format": "date-time", "nullable": true }, "unread_count": { "type": "integer", "format": "int64", "minimum": 0 } } },
-      "ConversationListResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "type": "array", "items": { "$ref": "#/components/schemas/ConversationSummary" } } } },
-      "Message": { "type": "object", "required": ["id", "conversation_id", "sender_id", "content", "created_at"], "properties": { "id": { "$ref": "#/components/schemas/PositiveID" }, "conversation_id": { "$ref": "#/components/schemas/PositiveID" }, "sender_id": { "$ref": "#/components/schemas/PositiveID" }, "content": { "type": "string", "minLength": 1, "maxLength": 2000, "example": "Hello" }, "created_at": { "type": "string", "format": "date-time" } } },
-      "SendMessageRequest": { "type": "object", "additionalProperties": false, "required": ["content"], "properties": { "request_id": { "type": "string", "nullable": true, "format": "uuid", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "Optional durable sender-scoped retry key. Reuse with identical content and conversation. Null/omitted uses legacy unkeyed sending." }, "content": { "type": "string", "minLength": 1, "maxLength": 2000, "description": "Original text is preserved; it must be valid UTF-8, contain no NUL, be nonempty after trimming whitespace, and contain at most 2,000 Unicode code points", "example": "Hello" } } },
-      "MessageResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "$ref": "#/components/schemas/Message" } } },
-      "MessagePagination": { "type": "object", "required": ["has_more", "next_before_id", "next_after_id"], "properties": { "has_more": { "type": "boolean" }, "next_before_id": { "allOf": [{ "$ref": "#/components/schemas/PositiveID" }], "nullable": true }, "next_after_id": { "allOf": [{ "$ref": "#/components/schemas/PositiveID" }], "nullable": true } } },
-      "MessagePage": { "type": "object", "required": ["status", "data", "meta"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "type": "array", "items": { "$ref": "#/components/schemas/Message" } }, "meta": { "type": "object", "required": ["pagination"], "properties": { "pagination": { "$ref": "#/components/schemas/MessagePagination" } } } } },
-      "MarkReadRequest": { "type": "object", "additionalProperties": false, "required": ["last_read_message_id"], "properties": { "last_read_message_id": { "$ref": "#/components/schemas/PositiveID" } } },
-      "MarkReadData": { "type": "object", "required": ["conversation_id", "last_read_message_id"], "properties": { "conversation_id": { "$ref": "#/components/schemas/PositiveID" }, "last_read_message_id": { "$ref": "#/components/schemas/PositiveID" } } },
-      "MarkReadResponse": { "type": "object", "required": ["status", "data"], "properties": { "status": { "type": "string", "enum": ["success"] }, "data": { "$ref": "#/components/schemas/MarkReadData" } } }
+      "WSRequestID": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+        "example": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "WSSendMessageCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "request_id",
+          "data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "send_message"
+            ]
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestID"
+          },
+          "data": {
+            "$ref": "#/components/schemas/WSSendData"
+          }
+        }
+      },
+      "WSMarkReadCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "request_id",
+          "data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mark_read"
+            ]
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/WSRequestID"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "conversation_id",
+              "last_read_message_id"
+            ],
+            "properties": {
+              "conversation_id": {
+                "$ref": "#/components/schemas/PositiveID"
+              },
+              "last_read_message_id": {
+                "$ref": "#/components/schemas/PositiveID"
+              }
+            }
+          }
+        }
+      },
+      "WSMessageSent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "data",
+          "request_id"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "message_sent"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/Message"
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestID"
+          }
+        }
+      },
+      "WSReadUpdated": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "request_id",
+          "data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "read_updated"
+            ]
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/WSRequestID"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "conversation_id",
+              "last_read_message_id"
+            ],
+            "properties": {
+              "conversation_id": {
+                "$ref": "#/components/schemas/PositiveID"
+              },
+              "last_read_message_id": {
+                "$ref": "#/components/schemas/PositiveID"
+              }
+            }
+          }
+        }
+      },
+      "WSNewMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "new_message"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/Message"
+          }
+        }
+      },
+      "WSError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "request_id",
+          "error"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "error"
+            ]
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "example": "550e8400-e29b-41d4-a716-446655440000",
+            "nullable": true,
+            "description": "Null when correlation could not be validated or for a connection-level rate error."
+          },
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid_input",
+                  "unsupported_command",
+                  "not_found",
+                  "request_conflict",
+                  "rate_limited",
+                  "internal_error",
+                  "attachment_not_ready",
+                  "attachment_unavailable",
+                  "attachment_expired"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PositiveID": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 1,
+        "example": 10
+      },
+      "WSTicketResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "ticket",
+              "expires_at"
+            ],
+            "properties": {
+              "ticket": {
+                "type": "string",
+                "minLength": 43,
+                "maxLength": 43,
+                "pattern": "^[A-Za-z0-9_-]{43}$"
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "status"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ok"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "invalid_input"
+          },
+          "message": {
+            "type": "string",
+            "example": "The submitted information is invalid."
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "fail"
+            ]
+          },
+          "error": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      },
+      "InternalErrorResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "error"
+            ]
+          },
+          "error": {
+            "$ref": "#/components/schemas/Error"
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "required": [
+          "field",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "first_name",
+              "last_name",
+              "email",
+              "password"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "required",
+              "too_long",
+              "invalid_characters",
+              "invalid_email",
+              "too_short",
+              "invalid_input"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "RegisterValidationError": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "details"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid_input"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "enum": [
+              "The submitted information is invalid."
+            ]
+          },
+          "details": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          }
+        }
+      },
+      "RegisterErrorResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "error"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "fail"
+            ]
+          },
+          "error": {
+            "$ref": "#/components/schemas/RegisterValidationError"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "avatar_url"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "name": {
+            "type": "string",
+            "example": "An Nguyen"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "an@example.com"
+          },
+          "avatar_url": {
+            "type": "string",
+            "example": "https://clipart-library.com/img/1816203.png"
+          }
+        }
+      },
+      "Participant": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "avatar_url"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "name": {
+            "type": "string",
+            "example": "Binh Tran"
+          },
+          "avatar_url": {
+            "type": "string",
+            "example": "https://clipart-library.com/img/1816203.png"
+          }
+        }
+      },
+      "PrivateProfile": {
+        "type": "object",
+        "required": [
+          "id",
+          "first_name",
+          "last_name",
+          "name",
+          "date_of_birth",
+          "phone_number",
+          "avatar_url"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "first_name": {
+            "type": "string",
+            "example": "Pao"
+          },
+          "last_name": {
+            "type": "string",
+            "example": "Nguyen"
+          },
+          "name": {
+            "type": "string",
+            "example": "Pao Nguyen"
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "example": "2002-05-21"
+          },
+          "phone_number": {
+            "type": "string",
+            "pattern": "^\\+[0-9]{7,15}$",
+            "nullable": true,
+            "example": "+84901234567"
+          },
+          "avatar_url": {
+            "type": "string",
+            "example": "https://clipart-library.com/img/1816203.png"
+          }
+        }
+      },
+      "PublicProfile": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "avatar_url"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "name": {
+            "type": "string",
+            "example": "Pao Nguyen"
+          },
+          "avatar_url": {
+            "type": "string",
+            "example": "https://clipart-library.com/img/1816203.png"
+          }
+        }
+      },
+      "PrivateProfileResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/PrivateProfile"
+          }
+        }
+      },
+      "PublicProfileResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/PublicProfile"
+          }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Trimmed before storage; must not be null"
+          },
+          "last_name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Trimmed before storage; may be empty but must not be null"
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "description": "Must not be later than the current date; null clears the field"
+          },
+          "phone_number": {
+            "type": "string",
+            "pattern": "^\\+[0-9]{7,15}$",
+            "nullable": true,
+            "description": "Unique E.164 value; null clears the field"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "first_name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Trimmed before storage; must contain 1-100 Unicode code points, valid UTF-8, and no NUL",
+            "example": "An"
+          },
+          "last_name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Optional and trimmed before storage; when present must contain at most 100 Unicode code points, valid UTF-8, and no NUL",
+            "example": "Nguyen"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Trimmed and lowercased; must be a plain address without a display name and at most 254 UTF-8 bytes",
+            "example": "an@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "description": "Not trimmed or modified; must contain at least 8 Unicode code points, at most 72 UTF-8 bytes, valid UTF-8, and no NUL",
+            "writeOnly": true,
+            "example": "password123"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Trimmed and lowercased before lookup",
+            "example": "an@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "description": "Not trimmed; same 8 Unicode code point and 72 UTF-8 byte limits as registration",
+            "writeOnly": true,
+            "example": "password123"
+          }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "LoginData": {
+        "type": "object",
+        "required": [
+          "user",
+          "access_token",
+          "expires_at",
+          "refresh_token",
+          "refresh_expires_at"
+        ],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "access_token": {
+            "type": "string",
+            "description": "JWT access token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refresh_token": {
+            "type": "string",
+            "description": "JWT refresh token",
+            "writeOnly": true
+          },
+          "refresh_expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/LoginData"
+          }
+        }
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "refresh_token"
+        ],
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Refresh token returned by login",
+            "writeOnly": true
+          }
+        }
+      },
+      "RefreshData": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_at"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "New JWT access token"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RefreshResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/RefreshData"
+          }
+        }
+      },
+      "ForwardPagination": {
+        "type": "object",
+        "required": [
+          "has_more",
+          "next_after_id"
+        ],
+        "properties": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_after_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PositiveID"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "UserSearchPage": {
+        "type": "object",
+        "required": [
+          "status",
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Participant"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "pagination"
+            ],
+            "properties": {
+              "pagination": {
+                "$ref": "#/components/schemas/ForwardPagination"
+              }
+            }
+          }
+        }
+      },
+      "OpenDirectRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user_id"
+        ],
+        "properties": {
+          "user_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          }
+        }
+      },
+      "DirectConversation": {
+        "type": "object",
+        "required": [
+          "id",
+          "user"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "user": {
+            "$ref": "#/components/schemas/Participant"
+          }
+        }
+      },
+      "DirectConversationResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/DirectConversation"
+          }
+        }
+      },
+      "ConversationSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "user",
+          "last_message",
+          "last_message_at",
+          "unread_count"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "user": {
+            "$ref": "#/components/schemas/Participant"
+          },
+          "last_message": {
+            "type": "string",
+            "nullable": true,
+            "example": "Hello"
+          },
+          "last_message_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "unread_count": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ConversationListResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConversationSummary"
+            }
+          }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "conversation_id",
+          "sender_id",
+          "content",
+          "created_at",
+          "attachments"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "conversation_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "sender_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^[^\\u0000]*$",
+            "description": "Valid UTF-8, no NUL; original whitespace preserved. Omitted is empty, explicit null rejected."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attachments": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            }
+          }
+        }
+      },
+      "SendMessageRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^[^\\u0000]*$",
+            "default": "",
+            "description": "Valid UTF-8, no NUL; original whitespace preserved. Omitted is empty, explicit null rejected."
+          },
+          "attachment_ids": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/PositiveID"
+            },
+            "default": []
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequestID"
+              },
+              {
+                "type": "string",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ],
+            "description": "Omitted/null is unkeyed; media clients should persist a stable UUID for safe retry."
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "content"
+            ],
+            "properties": {
+              "content": {
+                "type": "string",
+                "pattern": "[^\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]"
+              }
+            }
+          },
+          {
+            "required": [
+              "attachment_ids"
+            ],
+            "properties": {
+              "attachment_ids": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        ]
+      },
+      "MessageResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/Message"
+          }
+        }
+      },
+      "MessagePagination": {
+        "type": "object",
+        "required": [
+          "has_more",
+          "next_before_id",
+          "next_after_id"
+        ],
+        "properties": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "next_before_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PositiveID"
+              }
+            ],
+            "nullable": true
+          },
+          "next_after_id": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PositiveID"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "MessagePage": {
+        "type": "object",
+        "required": [
+          "status",
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "pagination"
+            ],
+            "properties": {
+              "pagination": {
+                "$ref": "#/components/schemas/MessagePagination"
+              }
+            }
+          }
+        }
+      },
+      "MarkReadRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "last_read_message_id"
+        ],
+        "properties": {
+          "last_read_message_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          }
+        }
+      },
+      "MarkReadData": {
+        "type": "object",
+        "required": [
+          "conversation_id",
+          "last_read_message_id"
+        ],
+        "properties": {
+          "conversation_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "last_read_message_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          }
+        }
+      },
+      "MarkReadResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/MarkReadData"
+          }
+        }
+      },
+      "Attachment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "content_type",
+          "size_bytes"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "video/mp4"
+            ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "image"
+                ]
+              },
+              "content_type": {
+                "enum": [
+                  "image/jpeg",
+                  "image/png"
+                ]
+              },
+              "size_bytes": {
+                "maximum": 10485760
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "video"
+                ]
+              },
+              "content_type": {
+                "enum": [
+                  "video/mp4"
+                ]
+              },
+              "size_bytes": {
+                "maximum": 52428800
+              }
+            }
+          }
+        ]
+      },
+      "UploadRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "content_type",
+          "size_bytes"
+        ],
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "video/mp4"
+            ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "content_type": {
+                "enum": [
+                  "image/jpeg",
+                  "image/png"
+                ]
+              },
+              "size_bytes": {
+                "maximum": 10485760
+              }
+            }
+          },
+          {
+            "properties": {
+              "content_type": {
+                "enum": [
+                  "video/mp4"
+                ]
+              },
+              "size_bytes": {
+                "maximum": 52428800
+              }
+            }
+          }
+        ]
+      },
+      "UploadGrant": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "upload_url",
+          "upload_method",
+          "upload_headers",
+          "content_type",
+          "size_bytes",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "upload_url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "upload_method": {
+            "type": "string",
+            "enum": [
+              "PUT"
+            ]
+          },
+          "upload_headers": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "Content-Type"
+            ],
+            "properties": {
+              "Content-Type": {
+                "type": "string",
+                "enum": [
+                  "image/jpeg",
+                  "image/png",
+                  "video/mp4"
+                ]
+              }
+            }
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "video/mp4"
+            ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 52428800
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CompleteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "CompleteData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "content_type",
+          "size_bytes",
+          "state",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "video/mp4"
+            ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "attached"
+            ]
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "string",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            ]
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "ready"
+                ]
+              },
+              "expires_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "attached"
+                ]
+              },
+              "expires_at": {
+                "type": "string",
+                "nullable": true,
+                "enum": [
+                  null
+                ]
+              }
+            }
+          }
+        ],
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "image"
+                    ]
+                  },
+                  "content_type": {
+                    "enum": [
+                      "image/jpeg",
+                      "image/png"
+                    ]
+                  },
+                  "size_bytes": {
+                    "maximum": 10485760
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "video"
+                    ]
+                  },
+                  "content_type": {
+                    "enum": [
+                      "video/mp4"
+                    ]
+                  },
+                  "size_bytes": {
+                    "maximum": 52428800
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "AccessData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "url",
+          "expires_at"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UploadResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/UploadGrant"
+          }
+        }
+      },
+      "CompleteResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/CompleteData"
+          }
+        }
+      },
+      "AccessResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "data"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/AccessData"
+          }
+        }
+      },
+      "WSSendData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "conversation_id"
+        ],
+        "properties": {
+          "conversation_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^[^\\u0000]*$",
+            "default": "",
+            "description": "Valid UTF-8, no NUL; original whitespace preserved. Omitted is empty, explicit null rejected."
+          },
+          "attachment_ids": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/PositiveID"
+            },
+            "default": []
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "content"
+            ],
+            "properties": {
+              "content": {
+                "type": "string",
+                "pattern": "[^\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]"
+              }
+            }
+          },
+          {
+            "required": [
+              "attachment_ids"
+            ],
+            "properties": {
+              "attachment_ids": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        ]
+      },
+      "RequestID": {
+        "type": "string",
+        "minLength": 36,
+        "maxLength": 36,
+        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      }
+    }
+  },
+  "x-media-contract": {
+    "version": "1.0.0",
+    "status": "implemented_backend_cloud_acceptance_pending",
+    "description": "Active paths/components implement this contract. GCS and actual device acceptance remain separate.",
+    "limits": {
+      "max_attachments": 5,
+      "image_max_bytes": 10485760,
+      "image_max_pixels": 25000000,
+      "video_max_bytes": 52428800,
+      "content_max_code_points": 2000,
+      "access_ttl_seconds": 900,
+      "unsent_ttl_seconds": 86400,
+      "max_pending_per_user": 10
+    },
+    "errors": [
+      {
+        "http_status": 400,
+        "code": "invalid_input",
+        "client_action": "Correct JSON/fields/UUID; distinct positive IDs, at most five; content OR attachments required."
+      },
+      {
+        "http_status": 401,
+        "code": "unauthenticated",
+        "client_action": "Refresh backend access token."
+      },
+      {
+        "http_status": 404,
+        "code": "not_found",
+        "client_action": "Unknown/inaccessible conversation or attachment; wrong owner/conversation; unavailable preview."
+      },
+      {
+        "http_status": 409,
+        "code": "attachment_not_ready",
+        "client_action": "Finish upload and completion; no message created."
+      },
+      {
+        "http_status": 409,
+        "code": "attachment_unavailable",
+        "client_action": "Failed/deleting/deleted/already-bound file outside identical replay; remove or reupload."
+      },
+      {
+        "http_status": 409,
+        "code": "request_conflict",
+        "client_action": "Changed conversation/content/ordered attachment IDs with existing sender/request_id."
+      },
+      {
+        "http_status": 410,
+        "code": "attachment_expired",
+        "client_action": "Expired pending file; obtain new grant. Attached files are not subject to unsent expiry."
+      },
+      {
+        "http_status": 413,
+        "code": "media_too_large",
+        "client_action": "Declared/actual bytes exceed file limit; reduce file."
+      },
+      {
+        "http_status": 413,
+        "code": "payload_too_large",
+        "client_action": "Backend JSON exceeds existing 16 KiB limit."
+      },
+      {
+        "http_status": 415,
+        "code": "unsupported_media_type",
+        "client_action": "Wrong backend Content-Type or unsupported declared/detected format/codec/track layout."
+      },
+      {
+        "http_status": 422,
+        "code": "invalid_media",
+        "client_action": "Malformed file, bad dimensions/pixel budget or allowed declaration differs from actual bytes/type/length."
+      },
+      {
+        "http_status": 429,
+        "code": "upload_limit_exceeded",
+        "client_action": "Pending cap; send ready drafts or wait. Retry-After seconds until earliest pending expiry."
+      },
+      {
+        "http_status": 503,
+        "code": "storage_unavailable",
+        "client_action": "Transient storage/inspection I/O or timeout; retry with bounded backoff."
+      },
+      {
+        "http_status": 500,
+        "code": "internal_error",
+        "client_action": "Internal DB/configuration/tool failure; no internals exposed."
+      }
+    ],
+    "examples": {
+      "UploadRequest": {
+        "content_type": "image/jpeg",
+        "size_bytes": 125000
+      },
+      "UploadResponse": {
+        "status": "success",
+        "data": {
+          "id": 501,
+          "upload_url": "https://storage.googleapis.com/upload/storage/v1/b/EXAMPLE_BUCKET/o?uploadType=resumable&upload_id=EXAMPLE_SESSION",
+          "upload_method": "PUT",
+          "upload_headers": {
+            "Content-Type": "image/jpeg"
+          },
+          "content_type": "image/jpeg",
+          "size_bytes": 125000,
+          "expires_at": "2026-10-10T03:00:00Z"
+        }
+      },
+      "CompleteRequest": {},
+      "CompleteResponse": {
+        "status": "success",
+        "data": {
+          "id": 501,
+          "kind": "image",
+          "content_type": "image/jpeg",
+          "size_bytes": 125000,
+          "state": "ready",
+          "expires_at": "2026-10-10T03:00:00Z"
+        }
+      },
+      "AccessResponse": {
+        "status": "success",
+        "data": {
+          "id": 501,
+          "url": "https://storage.googleapis.com/EXAMPLE_BUCKET/EXAMPLE_OBJECT?generation=EXAMPLE_GENERATION&X-Goog-Signature=EXAMPLE_SIGNATURE",
+          "expires_at": "2026-10-09T03:15:00Z"
+        }
+      },
+      "TextOnlySend": {
+        "content": "Hello",
+        "request_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "MediaOnlySend": {
+        "attachment_ids": [
+          501
+        ],
+        "request_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "MixedSend": {
+        "content": "Pictures from today",
+        "attachment_ids": [
+          501,
+          502
+        ],
+        "request_id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "MessageResponse": {
+        "status": "success",
+        "data": {
+          "id": 101,
+          "conversation_id": 10,
+          "sender_id": 1,
+          "content": "Pictures from today",
+          "created_at": "2026-10-09T03:00:00Z",
+          "attachments": [
+            {
+              "id": 501,
+              "kind": "image",
+              "content_type": "image/jpeg",
+              "size_bytes": 125000
+            },
+            {
+              "id": 502,
+              "kind": "video",
+              "content_type": "video/mp4",
+              "size_bytes": 4200000
+            }
+          ]
+        }
+      },
+      "WSSendMessage": {
+        "type": "send_message",
+        "request_id": "550e8400-e29b-41d4-a716-446655440000",
+        "data": {
+          "conversation_id": 10,
+          "content": "Pictures from today",
+          "attachment_ids": [
+            501,
+            502
+          ]
+        }
+      },
+      "WSMessageSent": {
+        "type": "message_sent",
+        "request_id": "550e8400-e29b-41d4-a716-446655440000",
+        "data": {
+          "id": 101,
+          "conversation_id": 10,
+          "sender_id": 1,
+          "content": "Pictures from today",
+          "created_at": "2026-10-09T03:00:00Z",
+          "attachments": [
+            {
+              "id": 501,
+              "kind": "image",
+              "content_type": "image/jpeg",
+              "size_bytes": 125000
+            },
+            {
+              "id": 502,
+              "kind": "video",
+              "content_type": "video/mp4",
+              "size_bytes": 4200000
+            }
+          ]
+        }
+      },
+      "WSNewMessage": {
+        "type": "new_message",
+        "data": {
+          "id": 101,
+          "conversation_id": 10,
+          "sender_id": 1,
+          "content": "Pictures from today",
+          "created_at": "2026-10-09T03:00:00Z",
+          "attachments": [
+            {
+              "id": 501,
+              "kind": "image",
+              "content_type": "image/jpeg",
+              "size_bytes": 125000
+            },
+            {
+              "id": 502,
+              "kind": "video",
+              "content_type": "video/mp4",
+              "size_bytes": 4200000
+            }
+          ]
+        }
+      },
+      "WSError": {
+        "type": "error",
+        "request_id": "550e8400-e29b-41d4-a716-446655440000",
+        "error": {
+          "code": "attachment_not_ready",
+          "message": "Attachment is not ready."
+        }
+      }
+    },
+    "business_rules": [
+      "Membership/ownership before lifecycle error disclosure.",
+      "Content omitted is empty; null rejected. At least nonblank content or attachments.",
+      "Ordered attachment IDs are part of durable sender/request_id comparison.",
+      "Identical retry returns original even with now-attached/previously expired pending metadata.",
+      "Complete ready/attached is idempotent; attached expiry is null.",
+      "Upload grant issuance is not idempotent; lost response may reserve another pending slot.",
+      "All history/acknowledgement/event messages carry attachments arrays, never URLs.",
+      "Access checks membership at issuance; existing bearer URL remains usable until expiry."
+    ],
+    "upload_protocol": {
+      "provider": "GCS JSON resumable",
+      "chunk_multiple_bytes": 262144,
+      "suggested_chunk_bytes": 8388608,
+      "incomplete_status": 308,
+      "complete_statuses": [
+        200,
+        201
+      ],
+      "status_query": {
+        "method": "PUT",
+        "body_bytes": 0,
+        "content_range": "bytes */TOTAL"
+      },
+      "cancel": {
+        "method": "DELETE",
+        "success_status": 499
+      },
+      "authorization": "Session URI is bearer capability; never send application JWT to GCS.",
+      "expiry": "Application eligibility is 24h; provider session may last up to a week. Cleanup cancels/reconciles; immediate provider revocation not promised.",
+      "browser": "Content-Length set by HTTP stack; expose Range and send Origin/Content-Range as provider requires."
     }
   }
 }

@@ -85,6 +85,47 @@ Table messages {
   }
 }
 
+// Migration 000004: stored metadata only; GCS holds the file bytes.
+Table attachments {
+  id bigint [pk, increment]
+  conversation_id bigint [not null]
+  owner_id bigint [not null]
+  message_id bigint [null]
+  position smallint [null, note: '0-4; set together with message_id only in attached state']
+  state text [not null, default: 'uploading', note: 'uploading, ready, attached, failed, deleting, deleted']
+  object_key text [not null, unique]
+  object_generation bigint [null, note: 'Positive when set; required for ready/attached']
+  declared_content_type text [not null]
+  declared_size_bytes bigint [not null, note: 'JPEG/PNG 1-10485760; MP4 1-52428800 bytes']
+  kind text [null]
+  content_type text [null]
+  size_bytes bigint [null]
+  session_cipher bytea [null, note: 'Migration 000005: AES-GCM encrypted resumable-session capability; excluded from ordinary DTOs']
+  cleanup_token text [null, note: 'Claim token, set/cleared with cleanup_claimed_at']
+  cleanup_claimed_at timestamptz [null, note: '5-minute cleanup lease']
+  cleanup_checked_at timestamptz [null, note: 'Hourly tombstone reconciliation for 8 days']
+  created_at timestamptz [not null, default: `now()`]
+  expires_at timestamptz [not null, default: `now() + interval '24 hours'`]
+
+  Indexes {
+    (message_id, position) [unique]
+    (owner_id, expires_at) [note: 'Partial: uploading/ready only']
+    expires_at [note: 'Partial: uploading/ready/failed/deleting only']
+  }
+
+  Note: '''SQL composite foreign keys require owner membership and a message
+  from the same conversation. Verified kind/type/size are all null or complete
+  and match the declaration. Ready/attached require verified metadata and
+  generation. Expiry equals created_at plus 24 hours; attached media is not
+  removed by pending-upload expiry. Cross-table text-or-attachment and actual
+  file validation are enforced by the shared use case, atomic send transaction
+  and storage inspector. Session recovery requires stable encryption key.'''
+}
+
+Ref: conversations.id < attachments.conversation_id
+Ref: users.id < attachments.owner_id
+Ref: messages.id < attachments.message_id
+
 // Every visible line below is a 1-N relationship.
 // One conversation has many member rows.
 Ref: conversations.id < conversation_members.conversation_id

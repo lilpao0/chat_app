@@ -35,11 +35,24 @@ func TestWebSocketAndRetryDocumentation(t *testing.T) {
 		}
 	}
 	rest := schemas["SendMessageRequest"].(map[string]any)
-	if contains(stringSlice(rest["required"]), "request_id") {
+	required, _ := rest["required"].([]any)
+	if contains(stringSlice(required), "request_id") {
 		t.Fatal("REST compatibility key must remain optional")
 	}
 	if _, ok := rest["properties"].(map[string]any)["request_id"]; !ok {
 		t.Fatal("missing REST retry key")
+	}
+	if contains(stringSlice(required), "content") || rest["properties"].(map[string]any)["attachment_ids"] == nil || rest["anyOf"] == nil {
+		t.Fatal("REST must accept text or media, with optional content")
+	}
+	message := schemas["Message"].(map[string]any)
+	if !contains(stringSlice(message["required"]), "attachments") {
+		t.Fatal("message metadata must always contain attachments array")
+	}
+	for _, name := range []string{"UploadRequest", "UploadResponse", "CompleteRequest", "CompleteResponse", "AccessResponse", "Attachment"} {
+		if schemas[name] == nil {
+			t.Fatalf("missing active media schema %s", name)
+		}
 	}
 	send := paths["/api/conversations/{id}/messages"].(map[string]any)["post"].(map[string]any)
 	if _, ok := send["responses"].(map[string]any)["409"]; !ok {

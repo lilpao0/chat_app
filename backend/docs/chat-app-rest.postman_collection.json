@@ -813,9 +813,17 @@
     },
     {
       "name": "18 Get my private profile",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test(\"Private profile envelope\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"userAId\")); pm.expect(body.data).to.have.property(\"date_of_birth\"); pm.expect(body.data).to.have.property(\"phone_number\"); });"
-      ] } }],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Private profile envelope\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"userAId\")); pm.expect(body.data).to.have.property(\"date_of_birth\"); pm.expect(body.data).to.have.property(\"phone_number\"); });"
+            ]
+          }
+        }
+      ],
       "request": {
         "method": "GET",
         "header": [],
@@ -831,17 +839,31 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/users/me",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "users", "me"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "me"
+          ]
         }
       },
       "response": []
     },
     {
       "name": "19 Get B public profile",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test(\"Public profile envelope and privacy\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"userBId\")); pm.expect(body.data).not.to.have.property(\"date_of_birth\"); pm.expect(body.data).not.to.have.property(\"phone_number\"); pm.expect(body.data).not.to.have.property(\"email\"); });"
-      ] } }],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Public profile envelope and privacy\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(String(body.data.id)).to.eql(pm.collectionVariables.get(\"userBId\")); pm.expect(body.data).not.to.have.property(\"date_of_birth\"); pm.expect(body.data).not.to.have.property(\"phone_number\"); pm.expect(body.data).not.to.have.property(\"email\"); });"
+            ]
+          }
+        }
+      ],
       "request": {
         "method": "GET",
         "header": [],
@@ -857,60 +879,573 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/users/{{userBId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "users", "{{userBId}}"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "{{userBId}}"
+          ]
         }
       },
       "response": []
     },
     {
       "name": "20 Update my private profile",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test(\"Updated private profile envelope\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.first_name).to.eql(\"An\"); pm.expect(body.data.last_name).to.eql(\"Nguyen\"); pm.expect(body.data.date_of_birth).to.eql(\"2000-01-01\"); pm.expect(body.data.phone_number).to.eql(null); });"
-      ] } }],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Updated private profile envelope\", function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.status).to.eql(\"success\"); pm.expect(body.data.first_name).to.eql(\"An\"); pm.expect(body.data.last_name).to.eql(\"Nguyen\"); pm.expect(body.data.date_of_birth).to.eql(\"2000-01-01\"); pm.expect(body.data.phone_number).to.eql(null); });"
+            ]
+          }
+        }
+      ],
       "request": {
         "method": "PATCH",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "auth": {
           "type": "bearer",
           "bearer": [
-            { "key": "token", "value": "{{tokenA}}", "type": "string" }
+            {
+              "key": "token",
+              "value": "{{tokenA}}",
+              "type": "string"
+            }
           ]
         },
         "url": {
           "raw": "{{baseUrl}}/api/users/me",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "users", "me"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users",
+            "me"
+          ]
         },
         "body": {
           "mode": "raw",
           "raw": "{\n  \"first_name\": \"An\",\n  \"last_name\": \"Nguyen\",\n  \"date_of_birth\": \"2000-01-01\",\n  \"phone_number\": null\n}",
-          "options": { "raw": { "language": "json" } }
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "description": "Send any nonempty subset. Omitted fields stay unchanged; date_of_birth and phone_number accept null to clear them."
       },
       "response": []
-    }
-    ,{
+    },
+    {
       "name": "21 Issue browser WebSocket ticket",
-      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
-        "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
-        "pm.test('One-use ticket', function () { const body = pm.response.json(); pm.expect(body.status).to.eql('success'); pm.expect(body.data.ticket).to.match(/^[A-Za-z0-9_-]{43}$/); pm.expect(new Date(body.data.expires_at).getTime()).to.be.above(Date.now()); pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); });"
-      ] } }],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+              "pm.test('One-use ticket', function () { const body = pm.response.json(); pm.expect(body.status).to.eql('success'); pm.expect(body.data.ticket).to.match(/^[A-Za-z0-9_-]{43}$/); pm.expect(new Date(body.data.expires_at).getTime()).to.be.above(Date.now()); pm.expect(pm.response.headers.get('Cache-Control')).to.eql('no-store'); });"
+            ]
+          }
+        }
+      ],
       "request": {
         "method": "POST",
-        "header": [{ "key": "Origin", "value": "{{webOrigin}}" }],
-        "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{tokenA}}", "type": "string" }] },
-        "url": { "raw": "{{baseUrl}}/api/ws/tickets", "host": ["{{baseUrl}}"], "path": ["api", "ws", "tickets"] },
+        "header": [
+          {
+            "key": "Origin",
+            "value": "{{webOrigin}}"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenA}}",
+              "type": "string"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/ws/tickets",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "ws",
+            "tickets"
+          ]
+        },
         "description": "Empty body required. Copy data.ticket manually into /ws?ticket=...; send the same approved Origin and omit Authorization from that browser-shaped handshake. Ticket is used once and expires within 60 seconds. Issue a fresh ticket for each attempt. Mobile Postman/Bearer flow remains available."
       },
       "response": []
+    },
+    {
+      "name": "Media uploads and messages",
+      "description": "Requires configured private GCS storage. Set actual size/type, copy grant ID/session locally, upload, complete, then send. Mixed example requires two completed grants. See MEDIA_SETUP.md.",
+      "item": [
+        {
+          "name": "01 Issue image upload grant",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/conversations/{{conversationId}}/attachments"
+            },
+            "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content_type\": \"{{mediaContentType}}\",\n  \"size_bytes\": {{mediaSizeBytes}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example response (placeholders only)",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/conversations/{{conversationId}}/attachments"
+                },
+                "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenA}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content_type\": \"image/jpeg\",\n  \"size_bytes\": 125000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 501,\n    \"upload_url\": \"https://storage.googleapis.com/upload/storage/v1/b/EXAMPLE_BUCKET/o?uploadType=resumable&upload_id=EXAMPLE_SESSION\",\n    \"upload_method\": \"PUT\",\n    \"upload_headers\": {\n      \"Content-Type\": \"image/jpeg\"\n    },\n    \"content_type\": \"image/jpeg\",\n    \"size_bytes\": 125000,\n    \"expires_at\": \"2026-10-10T03:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "02 Upload file directly to GCS",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{mediaUploadUrl}}"
+            },
+            "description": "single-chunk upload. Select matching local file. No backend JWT. HTTP stack sets Content-Length; GCS final 200/201 then complete. For chunk recovery follow CONTRACTS 9.2, not redirect semantics for 308. Set mediaSizeBytes to actual file length and mediaLastByte to length-1; issue grant with same size/type. Disable redirect following; 308 means incomplete upload, never HTTP redirect. Do not share session URL.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "{{mediaContentType}}"
+              },
+              {
+                "key": "Content-Range",
+                "value": "bytes 0-{{mediaLastByte}}/{{mediaSizeBytes}}"
+              }
+            ],
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": ""
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "02b Query interrupted upload offset",
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          },
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{mediaUploadUrl}}"
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Range",
+                "value": "bytes */{{mediaSizeBytes}}"
+              },
+              {
+                "key": "Content-Length",
+                "value": "0"
+              }
+            ],
+            "description": "Empty body. 308 Range reports last stored byte; absent Range means start at 0. Resume at last+1 with Content-Range bytes START-END/TOTAL. Nonfinal chunks must be multiples of 256 KiB. 200/201 means finished. Never attach backend JWT; do not log URLs."
+          }
+        },
+        {
+          "name": "03 Complete upload",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/attachments/{{attachmentId}}/complete"
+            },
+            "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example response (placeholders only)",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/attachments/{{attachmentId}}/complete"
+                },
+                "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenA}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 501,\n    \"kind\": \"image\",\n    \"content_type\": \"image/jpeg\",\n    \"size_bytes\": 125000,\n    \"state\": \"ready\",\n    \"expires_at\": \"2026-10-10T03:00:00Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "04 Send text with media",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/conversations/{{conversationId}}/messages"
+            },
+            "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Pictures from today\",\n  \"attachment_ids\": [\n    {{attachmentId}},\n    {{secondAttachmentId}}\n  ],\n  \"request_id\": \"{{mediaRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example response (placeholders only)",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/conversations/{{conversationId}}/messages"
+                },
+                "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenA}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content\": \"Pictures from today\",\n  \"attachment_ids\": [\n    {{attachmentId}},\n    {{secondAttachmentId}}\n  ],\n  \"request_id\": \"{{mediaRequestId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 101,\n    \"conversation_id\": 10,\n    \"sender_id\": 1,\n    \"content\": \"Pictures from today\",\n    \"created_at\": \"2026-10-09T03:00:00Z\",\n    \"attachments\": [\n      {\n        \"id\": 501,\n        \"kind\": \"image\",\n        \"content_type\": \"image/jpeg\",\n        \"size_bytes\": 125000\n      },\n      {\n        \"id\": 502,\n        \"kind\": \"video\",\n        \"content_type\": \"video/mp4\",\n        \"size_bytes\": 4200000\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "05 Send media only (alternative to 04)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/conversations/{{conversationId}}/messages"
+            },
+            "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"attachment_ids\": [\n    {{attachmentId}}\n  ],\n  \"request_id\": \"{{mediaRequestId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "Example response (placeholders only)",
+              "originalRequest": {
+                "method": "POST",
+                "url": {
+                  "raw": "{{baseUrl}}/api/conversations/{{conversationId}}/messages"
+                },
+                "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenA}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"attachment_ids\": [\n    {{attachmentId}}\n  ],\n  \"request_id\": \"{{mediaRequestId}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 101,\n    \"conversation_id\": 10,\n    \"sender_id\": 1,\n    \"content\": \"\",\n    \"created_at\": \"2026-10-09T03:00:00Z\",\n    \"attachments\": [\n      {\n        \"id\": 501,\n        \"kind\": \"image\",\n        \"content_type\": \"image/jpeg\",\n        \"size_bytes\": 125000\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "06 Get private media access",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/attachments/{{attachmentId}}/access"
+            },
+            "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": []
+          },
+          "response": [
+            {
+              "name": "Example response (placeholders only)",
+              "originalRequest": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/attachments/{{attachmentId}}/access"
+                },
+                "description": "Copy response IDs/URLs manually. Use a new UUID for each new logical send; preserve key for identical retry.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{tokenA}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": []
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": 501,\n    \"url\": \"https://storage.googleapis.com/EXAMPLE_BUCKET/EXAMPLE_OBJECT?generation=EXAMPLE_GENERATION&X-Goog-Signature=EXAMPLE_SIGNATURE\",\n    \"expires_at\": \"2026-10-09T03:15:00Z\"\n  }\n}"
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
-    { "key": "webOrigin", "value": "http://localhost:5173", "description": "Must exactly match WEB_ALLOWED_ORIGINS on the backend." },
+    {
+      "key": "webOrigin",
+      "value": "http://localhost:5173",
+      "description": "Must exactly match WEB_ALLOWED_ORIGINS on the backend."
+    },
     {
       "key": "messageRequestId",
       "value": "550e8400-e29b-41d4-a716-446655440000",
@@ -973,6 +1508,62 @@
       "key": "messageId",
       "value": "",
       "description": "Copy data.id from request 08."
+    },
+    {
+      "key": "attachmentId",
+      "value": "501",
+      "type": "string"
+    },
+    {
+      "key": "mediaUploadUrl",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mediaAccessUrl",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mediaRequestId",
+      "value": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "string"
+    },
+    {
+      "key": "secondAttachmentId",
+      "value": "502",
+      "type": "string"
+    },
+    {
+      "key": "mediaContentType",
+      "value": "image/jpeg",
+      "type": "string"
+    },
+    {
+      "key": "mediaSizeBytes",
+      "value": "125000",
+      "type": "string"
+    },
+    {
+      "key": "mediaLastByte",
+      "value": "124999",
+      "type": "string"
     }
-  ]
+  ],
+  "x-media-contract": {
+    "version": "1.0.0",
+    "status": "implemented_backend_cloud_acceptance_pending",
+    "description": "Requests are active in Media uploads and messages. All example capabilities are placeholders. Real GCS acceptance pending.",
+    "limits": {
+      "max_attachments": 5,
+      "image_max_bytes": 10485760,
+      "image_max_pixels": 25000000,
+      "video_max_bytes": 52428800,
+      "content_max_code_points": 2000,
+      "access_ttl_seconds": 900,
+      "unsent_ttl_seconds": 86400,
+      "max_pending_per_user": 10
+    },
+    "schema_source": "../internal/presentation/http/swagger/openapi.json#/components/schemas"
+  }
 }

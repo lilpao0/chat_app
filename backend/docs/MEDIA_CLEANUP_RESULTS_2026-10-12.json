@@ -1,0 +1,79 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "id": 8,
+      "check": "attached generation preserved",
+      "http_status": 200,
+      "pass": true
+    },
+    {
+      "id": 9,
+      "check": "attached generation preserved",
+      "http_status": 200,
+      "pass": true
+    },
+    {
+      "id": 10,
+      "check": "attached generation preserved",
+      "http_status": 200,
+      "pass": true
+    },
+    {
+      "id": 11,
+      "check": "unattached live object absent",
+      "http_status": 404,
+      "pass": true
+    },
+    {
+      "id": 12,
+      "check": "unattached live object absent",
+      "http_status": 404,
+      "pass": true
+    },
+    {
+      "check": "upload session terminal",
+      "http_status": 200,
+      "pass": true
+    }
+  ],
+  "db_rows": [
+    {
+      "id": 8,
+      "state": "attached",
+      "message_id": 85,
+      "lease_released": true
+    },
+    {
+      "id": 9,
+      "state": "attached",
+      "message_id": 85,
+      "lease_released": true
+    },
+    {
+      "id": 10,
+      "state": "attached",
+      "message_id": 90,
+      "lease_released": true
+    },
+    {
+      "id": 11,
+      "state": "deleted",
+      "message_id": null,
+      "lease_released": true
+    },
+    {
+      "id": 12,
+      "state": "deleted",
+      "message_id": null,
+      "lease_released": true
+    }
+  ],
+  "execution_id": "chat-media-cleanup-xtd6f",
+  "completed_at": "2026-10-12T09:44:04.691855Z",
+  "scheduler_last_attempt_at": "2026-10-12T09:43:50.597359Z",
+  "scheduler_state": "ENABLED",
+  "cleaned_count": 4,
+  "scheduled_execution_id": "chat-media-cleanup-cx4x7",
+  "scheduled_execution_completed_at": "2026-10-12T09:45:14.844825Z"
+}

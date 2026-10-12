@@ -1,5 +1,8 @@
 filename: backend/cloudbuild.yaml
 name: chat-api-deploy
+serviceAccount: projects/vinai-lab/serviceAccounts/chat-media-builder@vinai-lab.iam.gserviceaccount.com
+substitutions:
+  _SHA: $SHORT_SHA
 github:
   owner: lilpao0
   repo: chat_app

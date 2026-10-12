@@ -3,10 +3,12 @@ package message_test
 import (
 	"context"
 	"errors"
-	"github.com/lilpao0/chat_app/backend/internal/domain/entity"
-	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/message"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/lilpao0/chat_app/backend/internal/domain/entity"
+	"github.com/lilpao0/chat_app/backend/internal/domain/usecase/message"
 )
 
 type sendFunc func(context.Context, int64, int64, string) (entity.Message, error)
@@ -54,7 +56,7 @@ func TestSendPublishesOnlyPersistedMessages(t *testing.T) {
 		sendFunc(func(context.Context, int64, int64, string) (entity.Message, error) { return persisted, nil }),
 		publishFunc(func(got context.Context, value entity.Message) error {
 			publishCalls++
-			if got != ctx || value != persisted {
+			if got != ctx || !reflect.DeepEqual(value, persisted) {
 				t.Fatal("publisher did not receive committed message")
 			}
 			return errors.New("delivery unavailable")
@@ -62,7 +64,7 @@ func TestSendPublishesOnlyPersistedMessages(t *testing.T) {
 		func(err error) { reported = err },
 	)
 	result, err := u.Execute(ctx, 3, 7, "hello")
-	if err != nil || result != persisted || publishCalls != 1 || reported == nil {
+	if err != nil || !reflect.DeepEqual(result, persisted) || publishCalls != 1 || reported == nil {
 		t.Fatalf("result=%+v err=%v calls=%d reported=%v", result, err, publishCalls, reported)
 	}
 
