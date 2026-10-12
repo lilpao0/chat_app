@@ -25,6 +25,7 @@ func NewRouter(register handler.RegisterUseCase, login handler.LoginUseCase, ref
 		AllowOriginFunc: func(origin string) bool { return authentication.AllowedOrigin(origin, origins) },
 		AllowMethods:    []string{"GET", "POST", "PATCH", "HEAD", "OPTIONS"},
 		AllowHeaders:    []string{"Authorization", "Content-Type", "Origin", "Content-Length"},
+		ExposeHeaders:   []string{"Retry-After"},
 		MaxAge:          5 * time.Minute,
 	}))
 	r.GET("/health", handler.Health)
@@ -43,16 +44,19 @@ func RegisterWebSocketRoute(engine *gin.Engine, handle gin.HandlerFunc) {
 // the application. Keeping route registration together lets contract tests
 // compare the real Gin route table with the OpenAPI document.
 type ProtectedHandlers struct {
-	WSTicket          gin.HandlerFunc
-	SearchUsers       gin.HandlerFunc
-	OpenDirect        gin.HandlerFunc
-	ListConversations gin.HandlerFunc
-	SendMessage       gin.HandlerFunc
-	MessageHistory    gin.HandlerFunc
-	MarkRead          gin.HandlerFunc
-	GetPrivateProfile gin.HandlerFunc
-	GetPublicProfile  gin.HandlerFunc
-	UpdateProfile     gin.HandlerFunc
+	WSTicket           gin.HandlerFunc
+	SearchUsers        gin.HandlerFunc
+	OpenDirect         gin.HandlerFunc
+	ListConversations  gin.HandlerFunc
+	SendMessage        gin.HandlerFunc
+	MessageHistory     gin.HandlerFunc
+	MarkRead           gin.HandlerFunc
+	GetPrivateProfile  gin.HandlerFunc
+	GetPublicProfile   gin.HandlerFunc
+	UpdateProfile      gin.HandlerFunc
+	CreateAttachment   gin.HandlerFunc
+	CompleteAttachment gin.HandlerFunc
+	AccessAttachment   gin.HandlerFunc
 }
 
 func RegisterProtectedRoutes(group *gin.RouterGroup, handlers ProtectedHandlers) {
@@ -66,4 +70,17 @@ func RegisterProtectedRoutes(group *gin.RouterGroup, handlers ProtectedHandlers)
 	group.GET("/users/me", handlers.GetPrivateProfile)
 	group.PATCH("/users/me", handlers.UpdateProfile)
 	group.GET("/users/:id", handlers.GetPublicProfile)
+	group.POST("/conversations/:id/attachments", mediaRoute(handlers.CreateAttachment))
+	group.POST("/attachments/:id/complete", mediaRoute(handlers.CompleteAttachment))
+	group.GET("/attachments/:id/access", mediaRoute(handlers.AccessAttachment))
+}
+
+func mediaRoute(handle gin.HandlerFunc) gin.HandlerFunc {
+	if handle != nil {
+		return handle
+	}
+	return func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		response.Error(c, 503, "storage_unavailable", "Media storage is not configured.")
+	}
 }

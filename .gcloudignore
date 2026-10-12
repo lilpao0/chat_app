@@ -1,0 +1,11 @@
+.gcloudignore
+.git/
+.agents/
+.codex/
+gha-creds-*.json
+**/.env
+**/.env.*
+backend/.livecheck/
+**/*.exe
+**/*.log
+frontend/

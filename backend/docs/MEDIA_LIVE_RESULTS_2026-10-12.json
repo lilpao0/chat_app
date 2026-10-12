@@ -1,0 +1,707 @@
+{
+  "timestamp": "2026-10-12T09:42:02.528156+00:00",
+  "base_url": "https://chat-api-bzhivzj3sq-as.a.run.app",
+  "checks": [
+    {
+      "name": "register fixture A",
+      "pass": true
+    },
+    {
+      "name": "register fixture A API CORS",
+      "pass": true
+    },
+    {
+      "name": "login fixture A",
+      "pass": true
+    },
+    {
+      "name": "login fixture A API CORS",
+      "pass": true
+    },
+    {
+      "name": "register fixture B",
+      "pass": true
+    },
+    {
+      "name": "register fixture B API CORS",
+      "pass": true
+    },
+    {
+      "name": "login fixture B",
+      "pass": true
+    },
+    {
+      "name": "login fixture B API CORS",
+      "pass": true
+    },
+    {
+      "name": "register fixture C",
+      "pass": true
+    },
+    {
+      "name": "register fixture C API CORS",
+      "pass": true
+    },
+    {
+      "name": "login fixture C",
+      "pass": true
+    },
+    {
+      "name": "login fixture C API CORS",
+      "pass": true
+    },
+    {
+      "name": "open dedicated conversation",
+      "pass": true
+    },
+    {
+      "name": "open dedicated conversation API CORS",
+      "pass": true
+    },
+    {
+      "name": "issue image/png",
+      "pass": true
+    },
+    {
+      "name": "issue image/png API CORS",
+      "pass": true
+    },
+    {
+      "name": "issue image/png no-store",
+      "pass": true
+    },
+    {
+      "name": "Google HTTPS capability host",
+      "pass": true
+    },
+    {
+      "name": "Resumable capability",
+      "pass": true
+    },
+    {
+      "name": "incomplete completion",
+      "pass": true
+    },
+    {
+      "name": "incomplete completion API CORS",
+      "pass": true
+    },
+    {
+      "name": "incomplete completion no-store",
+      "pass": true
+    },
+    {
+      "name": "GCS first chunk 308",
+      "pass": true
+    },
+    {
+      "name": "GCS committed first chunk",
+      "pass": true
+    },
+    {
+      "name": "GCS status query 308/Range",
+      "pass": true
+    },
+    {
+      "name": "GCS final chunk success",
+      "pass": true
+    },
+    {
+      "name": "GCS upload browser origin",
+      "pass": true
+    },
+    {
+      "name": "GCS actual size/type",
+      "pass": true
+    },
+    {
+      "name": "complete upload",
+      "pass": true
+    },
+    {
+      "name": "complete upload API CORS",
+      "pass": true
+    },
+    {
+      "name": "complete upload no-store",
+      "pass": true
+    },
+    {
+      "name": "complete upload",
+      "pass": true
+    },
+    {
+      "name": "complete upload API CORS",
+      "pass": true
+    },
+    {
+      "name": "complete upload no-store",
+      "pass": true
+    },
+    {
+      "name": "Ready repeat completion unchanged",
+      "pass": true
+    },
+    {
+      "name": "recipient cannot preview unsent",
+      "pass": true
+    },
+    {
+      "name": "recipient cannot preview unsent API CORS",
+      "pass": true
+    },
+    {
+      "name": "recipient cannot preview unsent no-store",
+      "pass": true
+    },
+    {
+      "name": "recipient cannot complete owner upload",
+      "pass": true
+    },
+    {
+      "name": "recipient cannot complete owner upload API CORS",
+      "pass": true
+    },
+    {
+      "name": "recipient cannot complete owner upload no-store",
+      "pass": true
+    },
+    {
+      "name": "outsider cannot issue upload",
+      "pass": true
+    },
+    {
+      "name": "outsider cannot issue upload API CORS",
+      "pass": true
+    },
+    {
+      "name": "outsider cannot issue upload no-store",
+      "pass": true
+    },
+    {
+      "name": "issue video/mp4",
+      "pass": true
+    },
+    {
+      "name": "issue video/mp4 API CORS",
+      "pass": true
+    },
+    {
+      "name": "issue video/mp4 no-store",
+      "pass": true
+    },
+    {
+      "name": "Google HTTPS capability host",
+      "pass": true
+    },
+    {
+      "name": "Resumable capability",
+      "pass": true
+    },
+    {
+      "name": "GCS final chunk success",
+      "pass": true
+    },
+    {
+      "name": "GCS upload browser origin",
+      "pass": true
+    },
+    {
+      "name": "GCS actual size/type",
+      "pass": true
+    },
+    {
+      "name": "complete upload",
+      "pass": true
+    },
+    {
+      "name": "complete upload API CORS",
+      "pass": true
+    },
+    {
+      "name": "complete upload no-store",
+      "pass": true
+    },
+    {
+      "name": "upload does not change chat",
+      "pass": true
+    },
+    {
+      "name": "upload does not change chat API CORS",
+      "pass": true
+    },
+    {
+      "name": "Upload creates no preview or unread",
+      "pass": true
+    },
+    {
+      "name": "WS ack and event",
+      "pass": true
+    },
+    {
+      "name": "WS ack/event same metadata",
+      "pass": true
+    },
+    {
+      "name": "Recipient same metadata; no upload event",
+      "pass": true
+    },
+    {
+      "name": "Original attachment order",
+      "pass": true
+    },
+    {
+      "name": "No capability in message",
+      "pass": true
+    },
+    {
+      "name": "REST retry of WS send",
+      "pass": true
+    },
+    {
+      "name": "REST retry of WS send API CORS",
+      "pass": true
+    },
+    {
+      "name": "Durable retry same message",
+      "pass": true
+    },
+    {
+      "name": "WS retry only acknowledgement",
+      "pass": true
+    },
+    {
+      "name": "Retry reordered files conflicts",
+      "pass": true
+    },
+    {
+      "name": "Retry reordered files conflicts API CORS",
+      "pass": true
+    },
+    {
+      "name": "private access",
+      "pass": true
+    },
+    {
+      "name": "private access API CORS",
+      "pass": true
+    },
+    {
+      "name": "private access no-store",
+      "pass": true
+    },
+    {
+      "name": "Google HTTPS capability host",
+      "pass": true
+    },
+    {
+      "name": "Signed lifetime/generation",
+      "pass": true
+    },
+    {
+      "name": "Signed read exact bytes",
+      "pass": true
+    },
+    {
+      "name": "Signed read browser CORS",
+      "pass": true
+    },
+    {
+      "name": "refresh access",
+      "pass": true
+    },
+    {
+      "name": "refresh access API CORS",
+      "pass": true
+    },
+    {
+      "name": "refresh access no-store",
+      "pass": true
+    },
+    {
+      "name": "Refreshed access stays pinned",
+      "pass": true
+    },
+    {
+      "name": "private access",
+      "pass": true
+    },
+    {
+      "name": "private access API CORS",
+      "pass": true
+    },
+    {
+      "name": "private access no-store",
+      "pass": true
+    },
+    {
+      "name": "Google HTTPS capability host",
+      "pass": true
+    },
+    {
+      "name": "Signed lifetime/generation",
+      "pass": true
+    },
+    {
+      "name": "Signed read exact bytes",
+      "pass": true
+    },
+    {
+      "name": "Signed read browser CORS",
+      "pass": true
+    },
+    {
+      "name": "Video Range 206 bytes",
+      "pass": true
+    },
+    {
+      "name": "refresh access",
+      "pass": true
+    },
+    {
+      "name": "refresh access API CORS",
+      "pass": true
+    },
+    {
+      "name": "refresh access no-store",
+      "pass": true
+    },
+    {
+      "name": "Refreshed access stays pinned",
+      "pass": true
+    },
+    {
+      "name": "Outsider cannot view attached",
+      "pass": true
+    },
+    {
+      "name": "Outsider cannot view attached API CORS",
+      "pass": true
+    },
+    {
+      "name": "Outsider cannot view attached no-store",
+      "pass": true
+    },
+    {
+      "name": "complete upload",
+      "pass": true
+    },
+    {
+      "name": "complete upload API CORS",
+      "pass": true
+    },
+    {
+      "name": "complete upload no-store",
+      "pass": true
+    },
+    {
+      "name": "Attached complete does not reset",
+      "pass": true
+    },
+    {
+      "name": "Text-only send",
+      "pass": true
+    },
+    {
+      "name": "Text-only send API CORS",
+      "pass": true
+    },
+    {
+      "name": "Text attachments array",
+      "pass": true
+    },
+    {
+      "name": "Retry did not republish",
+      "pass": true
+    },
+    {
+      "name": "Retry did not republish",
+      "pass": true
+    },
+    {
+      "name": "issue image/jpeg",
+      "pass": true
+    },
+    {
+      "name": "issue image/jpeg API CORS",
+      "pass": true
+    },
+    {
+      "name": "issue image/jpeg no-store",
+      "pass": true
+    },
+    {
+      "name": "Google HTTPS capability host",
+      "pass": true
+    },
+    {
+      "name": "Resumable capability",
+      "pass": true
+    },
+    {
+      "name": "GCS final chunk success",
+      "pass": true
+    },
+    {
+      "name": "GCS upload browser origin",
+      "pass": true
+    },
+    {
+      "name": "GCS actual size/type",
+      "pass": true
+    },
+    {
+      "name": "complete upload",
+      "pass": true
+    },
+    {
+      "name": "complete upload API CORS",
+      "pass": true
+    },
+    {
+      "name": "complete upload no-store",
+      "pass": true
+    },
+    {
+      "name": "Image-only send",
+      "pass": true
+    },
+    {
+      "name": "Image-only send API CORS",
+      "pass": true
+    },
+    {
+      "name": "Media-only content",
+      "pass": true
+    },
+    {
+      "name": "Media-only fanout",
+      "pass": true
+    },
+    {
+      "name": "Media-only fanout",
+      "pass": true
+    },
+    {
+      "name": "private access",
+      "pass": true
+    },
+    {
+      "name": "private access API CORS",
+      "pass": true
+    },
+    {
+      "name": "private access no-store",
+      "pass": true
+    },
+    {
+      "name": "Google HTTPS capability host",
+      "pass": true
+    },
+    {
+      "name": "Signed lifetime/generation",
+      "pass": true
+    },
+    {
+      "name": "Signed read exact bytes",
+      "pass": true
+    },
+    {
+      "name": "Signed read browser CORS",
+      "pass": true
+    },
+    {
+      "name": "refresh access",
+      "pass": true
+    },
+    {
+      "name": "refresh access API CORS",
+      "pass": true
+    },
+    {
+      "name": "refresh access no-store",
+      "pass": true
+    },
+    {
+      "name": "Refreshed access stays pinned",
+      "pass": true
+    },
+    {
+      "name": "Before history",
+      "pass": true
+    },
+    {
+      "name": "Before history API CORS",
+      "pass": true
+    },
+    {
+      "name": "Before history same metadata",
+      "pass": true
+    },
+    {
+      "name": "After history",
+      "pass": true
+    },
+    {
+      "name": "After history API CORS",
+      "pass": true
+    },
+    {
+      "name": "After history ordered metadata",
+      "pass": true
+    },
+    {
+      "name": "Media preview/unread",
+      "pass": true
+    },
+    {
+      "name": "Media preview/unread API CORS",
+      "pass": true
+    },
+    {
+      "name": "Photo preview and unread per message",
+      "pass": true
+    },
+    {
+      "name": "Mark media read",
+      "pass": true
+    },
+    {
+      "name": "Mark media read API CORS",
+      "pass": true
+    },
+    {
+      "name": "Read marker reflected",
+      "pass": true
+    },
+    {
+      "name": "Read marker reflected API CORS",
+      "pass": true
+    },
+    {
+      "name": "Media read clears unread",
+      "pass": true
+    },
+    {
+      "name": "issue image/png",
+      "pass": true
+    },
+    {
+      "name": "issue image/png API CORS",
+      "pass": true
+    },
+    {
+      "name": "issue image/png no-store",
+      "pass": true
+    },
+    {
+      "name": "Google HTTPS capability host",
+      "pass": true
+    },
+    {
+      "name": "Resumable capability",
+      "pass": true
+    },
+    {
+      "name": "GCS final chunk success",
+      "pass": true
+    },
+    {
+      "name": "GCS upload browser origin",
+      "pass": true
+    },
+    {
+      "name": "GCS actual size/type",
+      "pass": true
+    },
+    {
+      "name": "Malformed actual image fails",
+      "pass": true
+    },
+    {
+      "name": "Malformed actual image fails API CORS",
+      "pass": true
+    },
+    {
+      "name": "Malformed actual image fails no-store",
+      "pass": true
+    },
+    {
+      "name": "Permanent failure unusable",
+      "pass": true
+    },
+    {
+      "name": "Permanent failure unusable API CORS",
+      "pass": true
+    },
+    {
+      "name": "Permanent failure unusable no-store",
+      "pass": true
+    },
+    {
+      "name": "issue image/jpeg",
+      "pass": true
+    },
+    {
+      "name": "issue image/jpeg API CORS",
+      "pass": true
+    },
+    {
+      "name": "issue image/jpeg no-store",
+      "pass": true
+    },
+    {
+      "name": "Google HTTPS capability host",
+      "pass": true
+    },
+    {
+      "name": "Resumable capability",
+      "pass": true
+    },
+    {
+      "name": "GCS final chunk success",
+      "pass": true
+    },
+    {
+      "name": "GCS upload browser origin",
+      "pass": true
+    },
+    {
+      "name": "GCS actual size/type",
+      "pass": true
+    }
+  ],
+  "fixtures": {
+    "accounts": [
+      {
+        "id": 33,
+        "email": "media-release-9b910a5c2c85-a@example.test"
+      },
+      {
+        "id": 34,
+        "email": "media-release-9b910a5c2c85-b@example.test"
+      },
+      {
+        "id": 35,
+        "email": "media-release-9b910a5c2c85-c@example.test"
+      }
+    ],
+    "owner_id": 33,
+    "conversation_id": 8,
+    "message_ids": [
+      85,
+      89,
+      90
+    ],
+    "attached_ids": [
+      9,
+      8,
+      10
+    ],
+    "failed_id": 11,
+    "expire_id": 12
+  },
+  "status": "PASS",
+  "revision": "chat-api-00006-mvn",
+  "build_id": "a02564f5-a103-4fd8-b56a-50440e8008d8"
+}

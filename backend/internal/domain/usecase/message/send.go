@@ -25,17 +25,32 @@ func (u *Send) Execute(ctx context.Context, conversationID, userID int64, conten
 }
 
 func (u *Send) ExecuteWithRequestID(ctx context.Context, conversationID, userID int64, content, requestID string) (entity.Message, error) {
+	return u.ExecuteWithAttachments(ctx, conversationID, userID, content, requestID, nil)
+}
+
+func (u *Send) ExecuteWithAttachments(ctx context.Context, conversationID, userID int64, content, requestID string, attachmentIDs []int64) (entity.Message, error) {
 	if requestID != "" && !entity.ValidRequestID(requestID) {
 		return entity.Message{}, entity.ErrInvalidInput
 	}
-	if conversationID <= 0 || userID <= 0 || !utf8.ValidString(content) || strings.ContainsRune(content, 0) || strings.TrimSpace(content) == "" || utf8.RuneCountInString(content) > 2000 {
+	if conversationID <= 0 || userID <= 0 || !utf8.ValidString(content) || strings.ContainsRune(content, 0) || (strings.TrimSpace(content) == "" && len(attachmentIDs) == 0) || utf8.RuneCountInString(content) > 2000 || len(attachmentIDs) > 5 {
 		return entity.Message{}, entity.ErrInvalidInput
+	}
+	seen := make(map[int64]bool, len(attachmentIDs))
+	for _, id := range attachmentIDs {
+		if id <= 0 || seen[id] {
+			return entity.Message{}, entity.ErrInvalidInput
+		}
+		seen[id] = true
 	}
 	// The write port must enforce membership inside its atomic persistence operation.
 	var persisted entity.Message
 	var err error
 	created := true
-	if requestID == "" {
+	if writer, ok := u.messages.(repository.MediaMessageWriter); ok {
+		persisted, created, err = writer.SendMediaOnce(ctx, conversationID, userID, content, requestID, attachmentIDs)
+	} else if len(attachmentIDs) > 0 {
+		return entity.Message{}, errors.New("media writer unavailable")
+	} else if requestID == "" {
 		persisted, err = u.messages.Send(ctx, conversationID, userID, content)
 	} else if writer, ok := u.messages.(repository.IdempotentMessageWriter); ok {
 		persisted, created, err = writer.SendOnce(ctx, conversationID, userID, content, requestID)

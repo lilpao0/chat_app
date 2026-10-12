@@ -13,6 +13,31 @@ import (
 type MessageSender interface {
 	ExecuteWithRequestID(context.Context, int64, int64, string, string) (entity.Message, error)
 }
+
+type mediaMessageSender interface {
+	ExecuteWithAttachments(context.Context, int64, int64, string, string, []int64) (entity.Message, error)
+}
+
+// raw fields retain omission versus explicit null at the transport boundary.
+func messageFields(content, attachments json.RawMessage) (string, []int64, error) {
+	var text string
+	var ids []int64
+	if len(content) > 0 {
+		if bytes.Equal(bytes.TrimSpace(content), []byte("null")) || json.Unmarshal(content, &text) != nil {
+			return text, ids, entity.ErrInvalidInput
+		}
+	}
+	if len(attachments) > 0 {
+		if bytes.Equal(bytes.TrimSpace(attachments), []byte("null")) || json.Unmarshal(attachments, &ids) != nil {
+			return text, ids, entity.ErrInvalidInput
+		}
+	}
+	if text == "" && len(ids) == 0 {
+		return text, ids, entity.ErrInvalidInput
+	}
+	return text, ids, nil
+}
+
 type ReadMarker interface {
 	Execute(context.Context, int64, int64, int64) (int64, error)
 }
@@ -70,17 +95,28 @@ func (c *Commands) execute(ctx context.Context, actor int64, raw []byte) reply {
 	switch cmd.Type {
 	case "send_message":
 		var body struct {
-			ConversationID int64  `json:"conversation_id"`
-			Content        string `json:"content"`
+			ConversationID int64           `json:"conversation_id"`
+			Content        json.RawMessage `json:"content"`
+			AttachmentIDs  json.RawMessage `json:"attachment_ids"`
 		}
-		if strictJSON(cmd.Data, &body) != nil || body.ConversationID <= 0 || body.Content == "" {
+		if strictJSON(cmd.Data, &body) != nil || body.ConversationID <= 0 {
+			return failure(id, "invalid_input", "Invalid message.")
+		}
+		content, attachmentIDs, parseErr := messageFields(body.Content, body.AttachmentIDs)
+		if parseErr != nil {
 			return failure(id, "invalid_input", "Invalid message.")
 		}
 		if c == nil || c.Send == nil {
 			return failure(id, "internal_error", "Command unavailable.")
 		}
 		var m entity.Message
-		m, err = c.Send.ExecuteWithRequestID(ctx, body.ConversationID, actor, body.Content, cmd.RequestID)
+		if sender, ok := c.Send.(mediaMessageSender); ok {
+			m, err = sender.ExecuteWithAttachments(ctx, body.ConversationID, actor, content, cmd.RequestID, attachmentIDs)
+		} else if len(attachmentIDs) > 0 {
+			err = errors.New("media send unavailable")
+		} else {
+			m, err = c.Send.ExecuteWithRequestID(ctx, body.ConversationID, actor, content, cmd.RequestID)
+		}
 		data = newMessageEvent(m).Data
 		cmd.Type = "message_sent"
 	case "mark_read":
@@ -102,6 +138,14 @@ func (c *Commands) execute(ctx context.Context, actor int64, raw []byte) reply {
 	}
 	if err != nil {
 		switch {
+		case errors.Is(err, entity.ErrAttachmentNotFound):
+			return failure(id, "not_found", "Attachment not found.")
+		case errors.Is(err, entity.ErrAttachmentNotReady):
+			return failure(id, "attachment_not_ready", "Finish uploading and completing the attachment.")
+		case errors.Is(err, entity.ErrAttachmentUnavailable):
+			return failure(id, "attachment_unavailable", "Attachment is unavailable.")
+		case errors.Is(err, entity.ErrAttachmentExpired):
+			return failure(id, "attachment_expired", "Request a new upload.")
 		case errors.Is(err, entity.ErrInvalidInput):
 			return failure(id, "invalid_input", "Invalid command data.")
 		case errors.Is(err, entity.ErrConversationNotFound):

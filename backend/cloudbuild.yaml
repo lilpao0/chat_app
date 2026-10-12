@@ -1,5 +1,7 @@
 substitutions:
   _SHA: local-build
+  _MEDIA_BUCKET: vinai-lab-chat-media
+  _MEDIA_SIGNER_EMAIL: 506751356289-compute@developer.gserviceaccount.com
 
 steps:
   # Build Docker image
@@ -13,6 +15,57 @@ steps:
       - -t
       - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:latest
       - backend
+
+  # Exercise native probe/encoder in the built runtime image, and create tiny live-check fixtures.
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - run
+      - --rm
+      - --entrypoint
+      - /usr/bin/ffmpeg
+      - -v
+      - /workspace:/workspace
+      - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:${_SHA}
+      - -y
+      - -v
+      - error
+      - -f
+      - lavfi
+      - -i
+      - color=c=blue:s=64x64:r=5
+      - -f
+      - lavfi
+      - -i
+      - sine=frequency=440:sample_rate=44100
+      - -t
+      - '1'
+      - -c:v
+      - libx264
+      - -pix_fmt
+      - yuv420p
+      - -c:a
+      - aac
+      - -movflags
+      - +faststart
+      - /workspace/media-valid.mp4
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - run
+      - --rm
+      - --entrypoint
+      - /usr/bin/ffprobe
+      - -v
+      - /workspace:/workspace
+      - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:${_SHA}
+      - -v
+      - error
+      - -count_frames
+      - -show_entries
+      - stream=codec_name,codec_type,nb_read_frames
+      - -of
+      - json
+      - /workspace/media-valid.mp4
 
   # Push image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
@@ -34,7 +87,6 @@ steps:
       - asia-southeast1
       - --platform
       - managed
-      - --allow-unauthenticated
       - --port
       - '8080'
       - --min-instances
@@ -45,8 +97,62 @@ steps:
       - '1000'
       - --timeout
       - '3600s'
+      - --memory
+      - 2Gi
+      - --update-env-vars
+      - MEDIA_BUCKET=${_MEDIA_BUCKET},MEDIA_SIGNER_EMAIL=${_MEDIA_SIGNER_EMAIL},MEDIA_FFPROBE=ffprobe,MEDIA_UPLOADS_PER_MINUTE=60
+      - --update-secrets
+      - JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest,MEDIA_SESSION_KEY=media-session-key:1
+
+  # Keep cleanup on the same image/key as the API; Cloud Scheduler invokes this job.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - deploy
+      - chat-media-cleanup
+      - --image
+      - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:${_SHA}
+      - --region
+      - asia-southeast1
+      - --service-account
+      - ${_MEDIA_SIGNER_EMAIL}
+      - --command
+      - /app/media-cleanup
+      - --args=-limit,10
+      - --tasks
+      - '1'
+      - --max-retries
+      - '1'
+      - --task-timeout
+      - 300s
+      - --memory
+      - 2Gi
+      - --cpu
+      - '1'
+      - --set-env-vars
+      - MEDIA_BUCKET=${_MEDIA_BUCKET},MEDIA_SIGNER_EMAIL=${_MEDIA_SIGNER_EMAIL},MEDIA_FFPROBE=ffprobe
       - --set-secrets
-      - JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest
+      - DATABASE_URL=database-url:latest,MEDIA_SESSION_KEY=media-session-key:1
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: python3
+    args:
+      - -c
+      - |
+        import pathlib, subprocess, urllib.request, urllib.error
+        token = subprocess.run(['gcloud', 'auth', 'print-access-token'], check=True, capture_output=True, text=True).stdout.strip()
+        url = 'https://storage.googleapis.com/upload/storage/v1/b/${_MEDIA_BUCKET}/o?uploadType=media&name=release-fixtures%2F${_SHA}%2Fmedia-valid.mp4&ifGenerationMatch=0'
+        request = urllib.request.Request(url, data=pathlib.Path('/workspace/media-valid.mp4').read_bytes(), headers={'Authorization': 'Bearer ' + token, 'Content-Type': 'video/mp4'}, method='POST')
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                print('Fixture uploaded:', response.status)
+        except urllib.error.HTTPError as error:
+            if error.code == 412:
+                print('Fixture already exists for this release')
+                raise SystemExit(0)
+            raise SystemExit('Fixture upload failed: HTTP ' + str(error.code))
 
 images:
   - asia-southeast1-docker.pkg.dev/$PROJECT_ID/chat-repo/chat-api:${_SHA}
@@ -54,5 +160,7 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
+serviceAccount: projects/$PROJECT_ID/serviceAccounts/chat-media-builder@$PROJECT_ID.iam.gserviceaccount.com
 
 timeout: '1800s'

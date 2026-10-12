@@ -1,49 +1,61 @@
-name: Deploy to Cloud Run
+name: Check and deploy backend
 
-on:
+'on':
+  pull_request:
+    branches: [main]
   push:
-    branches:
-      - main
-      - backend/Bao
+    branches: [main]
 
-env:
-  PROJECT_ID: vinai-lab
-  REGION: asia-southeast1
-  SERVICE_NAME: chat-api
-  ARTIFACT_REPO: chat-repo
+permissions:
+  contents: read
 
 jobs:
-  deploy:
+  check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: chat_test
+          POSTGRES_PASSWORD: chat_test
+          POSTGRES_DB: chat_app_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chat_test -d chat_app_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      TEST_DATABASE_URL: postgres://chat_test:chat_test@127.0.0.1:5432/chat_app_test?sslmode=disable
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Test, vet and build
+        run: |
+          go test -race -count=1 ./...
+          go vet ./...
+          go build ./...
 
+  deploy:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Configure Docker
-        run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
-
-      - name: Build and push image
-        working-directory: ./backend
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Build and deploy API and cleanup
+        env:
+          RELEASE_SHA: ${{ github.sha }}
         run: |
-          IMAGE_TAG=$(date +%Y%m%d-%H%M%S)
-          docker build -t asia-southeast1-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPO/$SERVICE_NAME:$IMAGE_TAG .
-          docker push asia-southeast1-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPO/$SERVICE_NAME:$IMAGE_TAG
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy $SERVICE_NAME \
-            --image asia-southeast1-docker.pkg.dev/$PROJECT_ID/$ARTIFACT_REPO/$SERVICE_NAME:${{ env.IMAGE_TAG }} \
-            --region $REGION \
-            --platform managed \
-            --allow-unauthenticated \
-            --set-secrets=JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest
+          gcloud builds submit --project vinai-lab \
+            --config backend/cloudbuild.yaml \
+            --substitutions "_SHA=$RELEASE_SHA" --quiet

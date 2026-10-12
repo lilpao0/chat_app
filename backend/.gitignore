@@ -1,2 +1,6 @@
 .env
 api.exe
+.env.*
+!.env.example
+.livecheck/
+*.log

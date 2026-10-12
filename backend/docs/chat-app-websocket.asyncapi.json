@@ -10,7 +10,14 @@
       "url": "localhost:8080",
       "protocol": "ws",
       "description": "Local API; an Android Emulator normally uses 10.0.2.2:8080.",
-      "security": [{ "bearerAuth": [] }, { "wsTicket": [] }]
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "wsTicket": []
+        }
+      ]
     }
   },
   "channels": {
@@ -21,8 +28,12 @@
         "summary": "Receive a command from the client",
         "message": {
           "oneOf": [
-            { "$ref": "#/components/messages/SendMessageCommand" },
-            { "$ref": "#/components/messages/MarkReadCommand" }
+            {
+              "$ref": "#/components/messages/SendMessageCommand"
+            },
+            {
+              "$ref": "#/components/messages/MarkReadCommand"
+            }
           ]
         }
       },
@@ -31,10 +42,18 @@
         "summary": "Publish an acknowledgement, realtime event, or error",
         "message": {
           "oneOf": [
-            { "$ref": "#/components/messages/MessageSent" },
-            { "$ref": "#/components/messages/ReadUpdated" },
-            { "$ref": "#/components/messages/NewMessage" },
-            { "$ref": "#/components/messages/Error" }
+            {
+              "$ref": "#/components/messages/MessageSent"
+            },
+            {
+              "$ref": "#/components/messages/ReadUpdated"
+            },
+            {
+              "$ref": "#/components/messages/NewMessage"
+            },
+            {
+              "$ref": "#/components/messages/Error"
+            }
           ]
         }
       }
@@ -59,86 +78,208 @@
       "SendMessageCommand": {
         "name": "send_message",
         "title": "Send message command",
-        "payload": { "$ref": "#/components/schemas/SendMessageCommand" },
-        "examples": [{
-          "payload": {
-            "type": "send_message",
-            "request_id": "550e8400-e29b-41d4-a716-446655440000",
-            "data": { "conversation_id": 10, "content": "Hello" }
+        "payload": {
+          "$ref": "#/components/schemas/SendMessageCommand"
+        },
+        "examples": [
+          {
+            "payload": {
+              "type": "send_message",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "data": {
+                "conversation_id": 10,
+                "content": "Hello"
+              }
+            }
+          },
+          {
+            "payload": {
+              "type": "send_message",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "data": {
+                "conversation_id": 10,
+                "content": "Pictures from today",
+                "attachment_ids": [
+                  501,
+                  502
+                ]
+              }
+            }
           }
-        }]
+        ]
       },
       "MarkReadCommand": {
         "name": "mark_read",
         "title": "Mark conversation read command",
-        "payload": { "$ref": "#/components/schemas/MarkReadCommand" },
-        "examples": [{
-          "payload": {
-            "type": "mark_read",
-            "request_id": "550e8400-e29b-41d4-a716-446655440001",
-            "data": { "conversation_id": 10, "last_read_message_id": 101 }
+        "payload": {
+          "$ref": "#/components/schemas/MarkReadCommand"
+        },
+        "examples": [
+          {
+            "payload": {
+              "type": "mark_read",
+              "request_id": "550e8400-e29b-41d4-a716-446655440001",
+              "data": {
+                "conversation_id": 10,
+                "last_read_message_id": 101
+              }
+            }
           }
-        }]
+        ]
       },
       "MessageSent": {
         "name": "message_sent",
         "title": "Message persistence acknowledgement",
-        "payload": { "$ref": "#/components/schemas/MessageSent" },
-        "examples": [{
-          "payload": {
-            "type": "message_sent",
-            "request_id": "550e8400-e29b-41d4-a716-446655440000",
-            "data": { "id": 101, "conversation_id": 10, "sender_id": 1, "content": "Hello", "created_at": "2026-09-28T03:00:00Z" }
+        "payload": {
+          "$ref": "#/components/schemas/MessageSent"
+        },
+        "examples": [
+          {
+            "payload": {
+              "type": "message_sent",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "data": {
+                "id": 101,
+                "conversation_id": 10,
+                "sender_id": 1,
+                "content": "Hello",
+                "created_at": "2026-09-28T03:00:00Z",
+                "attachments": []
+              }
+            }
+          },
+          {
+            "payload": {
+              "type": "message_sent",
+              "request_id": "550e8400-e29b-41d4-a716-446655440000",
+              "data": {
+                "id": 101,
+                "conversation_id": 10,
+                "sender_id": 1,
+                "content": "Pictures from today",
+                "created_at": "2026-10-09T03:00:00Z",
+                "attachments": [
+                  {
+                    "id": 501,
+                    "kind": "image",
+                    "content_type": "image/jpeg",
+                    "size_bytes": 125000
+                  },
+                  {
+                    "id": 502,
+                    "kind": "video",
+                    "content_type": "video/mp4",
+                    "size_bytes": 4200000
+                  }
+                ]
+              }
+            }
           }
-        }]
+        ]
       },
       "ReadUpdated": {
         "name": "read_updated",
         "title": "Read marker acknowledgement",
-        "payload": { "$ref": "#/components/schemas/ReadUpdated" },
-        "examples": [{
-          "payload": {
-            "type": "read_updated",
-            "request_id": "550e8400-e29b-41d4-a716-446655440001",
-            "data": { "conversation_id": 10, "last_read_message_id": 101 }
+        "payload": {
+          "$ref": "#/components/schemas/ReadUpdated"
+        },
+        "examples": [
+          {
+            "payload": {
+              "type": "read_updated",
+              "request_id": "550e8400-e29b-41d4-a716-446655440001",
+              "data": {
+                "conversation_id": 10,
+                "last_read_message_id": 101
+              }
+            }
           }
-        }]
+        ]
       },
       "NewMessage": {
         "name": "new_message",
         "title": "Committed message fan-out",
-        "payload": { "$ref": "#/components/schemas/NewMessage" },
-        "examples": [{
-          "payload": {
-            "type": "new_message",
-            "data": { "id": 101, "conversation_id": 10, "sender_id": 1, "content": "Hello", "created_at": "2026-09-28T03:00:00Z" }
+        "payload": {
+          "$ref": "#/components/schemas/NewMessage"
+        },
+        "examples": [
+          {
+            "payload": {
+              "type": "new_message",
+              "data": {
+                "id": 101,
+                "conversation_id": 10,
+                "sender_id": 1,
+                "content": "Hello",
+                "created_at": "2026-09-28T03:00:00Z",
+                "attachments": []
+              }
+            }
+          },
+          {
+            "payload": {
+              "type": "new_message",
+              "data": {
+                "id": 101,
+                "conversation_id": 10,
+                "sender_id": 1,
+                "content": "Pictures from today",
+                "created_at": "2026-10-09T03:00:00Z",
+                "attachments": [
+                  {
+                    "id": 501,
+                    "kind": "image",
+                    "content_type": "image/jpeg",
+                    "size_bytes": 125000
+                  },
+                  {
+                    "id": 502,
+                    "kind": "video",
+                    "content_type": "video/mp4",
+                    "size_bytes": 4200000
+                  }
+                ]
+              }
+            }
           }
-        }]
+        ]
       },
       "Error": {
         "name": "error",
         "title": "Command or connection error",
-        "payload": { "$ref": "#/components/schemas/Error" },
+        "payload": {
+          "$ref": "#/components/schemas/Error"
+        },
         "examples": [
           {
             "payload": {
               "type": "error",
               "request_id": "550e8400-e29b-41d4-a716-446655440000",
-              "error": { "code": "request_conflict", "message": "Request ID was already used." }
+              "error": {
+                "code": "request_conflict",
+                "message": "Request ID was already used."
+              }
             }
           },
           {
             "payload": {
               "type": "error",
               "request_id": null,
-              "error": { "code": "invalid_input", "message": "A canonical UUID request_id is required." }
+              "error": {
+                "code": "invalid_input",
+                "message": "A canonical UUID request_id is required."
+              }
             }
           }
         ]
       }
     },
     "schemas": {
-      "PositiveID": { "type": "integer", "format": "int64", "minimum": 1 },
+      "PositiveID": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 1
+      },
       "RequestID": {
         "type": "string",
         "format": "uuid",
@@ -148,47 +289,98 @@
       "Message": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "conversation_id", "sender_id", "content", "created_at"],
+        "required": [
+          "id",
+          "conversation_id",
+          "sender_id",
+          "content",
+          "created_at",
+          "attachments"
+        ],
         "properties": {
-          "id": { "$ref": "#/components/schemas/PositiveID" },
-          "conversation_id": { "$ref": "#/components/schemas/PositiveID" },
-          "sender_id": { "$ref": "#/components/schemas/PositiveID" },
-          "content": { "type": "string", "minLength": 1, "maxLength": 2000 },
-          "created_at": { "type": "string", "format": "date-time" }
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "conversation_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "sender_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^[^\\u0000]*$",
+            "description": "Valid UTF-8, no NUL; original whitespace preserved. Omitted is empty, explicit null rejected."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "attachments": {
+            "type": "array",
+            "maxItems": 5,
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            }
+          }
         }
       },
       "SendMessageCommand": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["type", "request_id", "data"],
+        "required": [
+          "type",
+          "request_id",
+          "data"
+        ],
         "properties": {
-          "type": { "type": "string", "enum": ["send_message"] },
-          "request_id": { "$ref": "#/components/schemas/RequestID" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "send_message"
+            ]
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestID"
+          },
           "data": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["conversation_id", "content"],
-            "properties": {
-              "conversation_id": { "$ref": "#/components/schemas/PositiveID" },
-              "content": { "type": "string", "minLength": 1, "maxLength": 2000, "description": "Valid UTF-8, no NUL, nonblank; original whitespace is preserved." }
-            }
+            "$ref": "#/components/schemas/WSSendData"
           }
         }
       },
       "MarkReadCommand": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["type", "request_id", "data"],
+        "required": [
+          "type",
+          "request_id",
+          "data"
+        ],
         "properties": {
-          "type": { "type": "string", "enum": ["mark_read"] },
-          "request_id": { "$ref": "#/components/schemas/RequestID" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "mark_read"
+            ]
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestID"
+          },
           "data": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["conversation_id", "last_read_message_id"],
+            "required": [
+              "conversation_id",
+              "last_read_message_id"
+            ],
             "properties": {
-              "conversation_id": { "$ref": "#/components/schemas/PositiveID" },
-              "last_read_message_id": { "$ref": "#/components/schemas/PositiveID" }
+              "conversation_id": {
+                "$ref": "#/components/schemas/PositiveID"
+              },
+              "last_read_message_id": {
+                "$ref": "#/components/schemas/PositiveID"
+              }
             }
           }
         }
@@ -196,27 +388,58 @@
       "MessageSent": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["type", "request_id", "data"],
+        "required": [
+          "type",
+          "data",
+          "request_id"
+        ],
         "properties": {
-          "type": { "type": "string", "enum": ["message_sent"] },
-          "request_id": { "$ref": "#/components/schemas/RequestID" },
-          "data": { "$ref": "#/components/schemas/Message" }
+          "type": {
+            "type": "string",
+            "enum": [
+              "message_sent"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/Message"
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestID"
+          }
         }
       },
       "ReadUpdated": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["type", "request_id", "data"],
+        "required": [
+          "type",
+          "request_id",
+          "data"
+        ],
         "properties": {
-          "type": { "type": "string", "enum": ["read_updated"] },
-          "request_id": { "$ref": "#/components/schemas/RequestID" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "read_updated"
+            ]
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestID"
+          },
           "data": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["conversation_id", "last_read_message_id"],
+            "required": [
+              "conversation_id",
+              "last_read_message_id"
+            ],
             "properties": {
-              "conversation_id": { "$ref": "#/components/schemas/PositiveID" },
-              "last_read_message_id": { "$ref": "#/components/schemas/PositiveID" }
+              "conversation_id": {
+                "$ref": "#/components/schemas/PositiveID"
+              },
+              "last_read_message_id": {
+                "$ref": "#/components/schemas/PositiveID"
+              }
             }
           }
         }
@@ -224,38 +447,296 @@
       "NewMessage": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["type", "data"],
+        "required": [
+          "type",
+          "data"
+        ],
         "properties": {
-          "type": { "type": "string", "enum": ["new_message"] },
-          "data": { "$ref": "#/components/schemas/Message" }
+          "type": {
+            "type": "string",
+            "enum": [
+              "new_message"
+            ]
+          },
+          "data": {
+            "$ref": "#/components/schemas/Message"
+          }
         }
       },
       "Error": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["type", "request_id", "error"],
+        "required": [
+          "type",
+          "request_id",
+          "error"
+        ],
         "properties": {
-          "type": { "type": "string", "enum": ["error"] },
+          "type": {
+            "type": "string",
+            "enum": [
+              "error"
+            ]
+          },
           "request_id": {
             "oneOf": [
-              { "$ref": "#/components/schemas/RequestID" },
-              { "type": "null" }
+              {
+                "$ref": "#/components/schemas/RequestID"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "error": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["code", "message"],
+            "required": [
+              "code",
+              "message"
+            ],
             "properties": {
               "code": {
                 "type": "string",
-                "enum": ["invalid_input", "unsupported_command", "not_found", "request_conflict", "rate_limited", "internal_error"]
+                "enum": [
+                  "invalid_input",
+                  "unsupported_command",
+                  "not_found",
+                  "request_conflict",
+                  "rate_limited",
+                  "internal_error",
+                  "attachment_not_ready",
+                  "attachment_unavailable",
+                  "attachment_expired"
+                ]
               },
-              "message": { "type": "string" }
+              "message": {
+                "type": "string"
+              }
             }
           }
         }
+      },
+      "Attachment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "content_type",
+          "size_bytes"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "image/jpeg",
+              "image/png",
+              "video/mp4"
+            ]
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "image"
+                ]
+              },
+              "content_type": {
+                "enum": [
+                  "image/jpeg",
+                  "image/png"
+                ]
+              },
+              "size_bytes": {
+                "maximum": 10485760
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "video"
+                ]
+              },
+              "content_type": {
+                "enum": [
+                  "video/mp4"
+                ]
+              },
+              "size_bytes": {
+                "maximum": 52428800
+              }
+            }
+          }
+        ]
+      },
+      "WSSendData": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "conversation_id"
+        ],
+        "properties": {
+          "conversation_id": {
+            "$ref": "#/components/schemas/PositiveID"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2000,
+            "pattern": "^[^\\u0000]*$",
+            "default": "",
+            "description": "Valid UTF-8, no NUL; original whitespace preserved. Omitted is empty, explicit null rejected."
+          },
+          "attachment_ids": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/PositiveID"
+            },
+            "default": []
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "content"
+            ],
+            "properties": {
+              "content": {
+                "type": "string",
+                "pattern": "[^\\t\\n\\v\\f\\r \\u0085\\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]"
+              }
+            }
+          },
+          {
+            "required": [
+              "attachment_ids"
+            ],
+            "properties": {
+              "attachment_ids": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        ]
       }
     }
+  },
+  "x-media-contract": {
+    "version": "1.0.0",
+    "status": "implemented_backend_cloud_acceptance_pending",
+    "description": "Active channels/components support text and media metadata; actual Flutter rendering/playback unverified.",
+    "limits": {
+      "max_attachments": 5,
+      "image_max_bytes": 10485760,
+      "image_max_pixels": 25000000,
+      "video_max_bytes": 52428800,
+      "content_max_code_points": 2000,
+      "access_ttl_seconds": 900,
+      "unsent_ttl_seconds": 86400,
+      "max_pending_per_user": 10
+    },
+    "examples": {
+      "WSSendMessage": {
+        "type": "send_message",
+        "request_id": "550e8400-e29b-41d4-a716-446655440000",
+        "data": {
+          "conversation_id": 10,
+          "content": "Pictures from today",
+          "attachment_ids": [
+            501,
+            502
+          ]
+        }
+      },
+      "WSMessageSent": {
+        "type": "message_sent",
+        "request_id": "550e8400-e29b-41d4-a716-446655440000",
+        "data": {
+          "id": 101,
+          "conversation_id": 10,
+          "sender_id": 1,
+          "content": "Pictures from today",
+          "created_at": "2026-10-09T03:00:00Z",
+          "attachments": [
+            {
+              "id": 501,
+              "kind": "image",
+              "content_type": "image/jpeg",
+              "size_bytes": 125000
+            },
+            {
+              "id": 502,
+              "kind": "video",
+              "content_type": "video/mp4",
+              "size_bytes": 4200000
+            }
+          ]
+        }
+      },
+      "WSNewMessage": {
+        "type": "new_message",
+        "data": {
+          "id": 101,
+          "conversation_id": 10,
+          "sender_id": 1,
+          "content": "Pictures from today",
+          "created_at": "2026-10-09T03:00:00Z",
+          "attachments": [
+            {
+              "id": 501,
+              "kind": "image",
+              "content_type": "image/jpeg",
+              "size_bytes": 125000
+            },
+            {
+              "id": 502,
+              "kind": "video",
+              "content_type": "video/mp4",
+              "size_bytes": 4200000
+            }
+          ]
+        }
+      },
+      "WSError": {
+        "type": "error",
+        "request_id": "550e8400-e29b-41d4-a716-446655440000",
+        "error": {
+          "code": "attachment_not_ready",
+          "message": "Attachment is not ready."
+        }
+      }
+    },
+    "error_codes": [
+      "invalid_input",
+      "unsupported_command",
+      "not_found",
+      "request_conflict",
+      "rate_limited",
+      "attachment_not_ready",
+      "attachment_unavailable",
+      "attachment_expired",
+      "internal_error"
+    ]
   }
 }

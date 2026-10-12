@@ -23,6 +23,16 @@ migrate -path "C:/absolute/path/to/backend/migrations" -database $env:DATABASE_U
 
 Tests always use the isolated `chat_app_test` database and never skip database coverage. Set `TEST_DATABASE_URL` explicitly when needed; for local development the test helper can derive the sibling `chat_app_test` URL from `DATABASE_URL` in `.env`. The database itself must already exist. Tests refuse any database whose actual name is not `chat_app_test`. Do not run destructive migration commands against `chat_app`.
 
+Migration `000004_message_attachments` adds attachment metadata/constraints/indexes and permits empty text with media. `000005_media_sessions` adds encrypted upload-session recovery and cleanup leases. Apply all five migrations explicitly to the intended database; tests do not migrate development data. Down migrations refuse destructive rollback: 000004 requires no attachments/incompatible blank messages; 000005 requires no recovery credentials/claims. Prefer forward correction after rollout.
+
+## Images and videos
+
+Backend supports text-only, media-only and text with up to five ordered images/videos. Files upload directly to private Google Cloud Storage; API verifies bytes, binds files atomically to one message, and issues authorized generation-bound read URLs. REST/WS/history expose metadata only. See [MEDIA_SETUP.md](docs/MEDIA_SETUP.md) for configuration, IAM/CORS, Postman upload/resume and cleanup; [cloud release evidence](docs/MEDIA_RELEASE_2026-10-12.md) records hosted API/GCS checks and remaining browser/device acceptance. Empty `MEDIA_BUCKET` leaves text chat available and storage operations return 503.
+
+`internal/domain/usecase/attachment/media.go` manages issuance/completion/access; `internal/data/storage` implements GCS and bounded inspection; `postgres_media_lifecycle.go` encrypts session recovery and claims cleanup; existing send transaction binds ready files before commit/publication. Docker includes ffprobe and `/app/media-cleanup`.
+
+With `TEST_DATABASE_URL` configured, run `go test -count=1 -v ./internal/testutil -run TestMessageAttachmentsMigration` from `backend/` for preservation, constraints, up/down, rollback refusal and concurrent-writer protection.
+
 ## Application layers
 
 - `internal/presentation`: HTTP handlers/middleware and WebSocket delivery.
@@ -53,7 +63,7 @@ Tokens expire after their configured TTLs. This simple MVP does not rotate or re
 
 ## Demo seed
 
-After applying all three migrations, set SEED_A_NAME, SEED_A_EMAIL, SEED_A_PASSWORD, SEED_B_NAME, SEED_B_EMAIL and SEED_B_PASSWORD, then run `go run ./cmd/seed`. DATABASE_URL selects the target. Passwords use the registration policy; the two normalized emails must differ.
+After applying all five migrations, set SEED_A_NAME, SEED_A_EMAIL, SEED_A_PASSWORD, SEED_B_NAME, SEED_B_EMAIL and SEED_B_PASSWORD, then run `go run ./cmd/seed`. DATABASE_URL selects the target. Passwords use the registration policy; the two normalized emails must differ.
 
 Repeat runs reuse existing accounts without changing names/passwords and reuse the exact pair's conversation. User-driven direct chat opening uses the same pair lookup. If an email already exists, its existing password still applies, regardless of the supplied seed password. Seeding is never automatic. Verification created fixtures only in private chat_app_test schemas, not development accounts.
 
@@ -64,7 +74,10 @@ Repeat runs reuse existing accounts without changing names/passwords and reuse t
 | GET /api/users | q: name substring or exact email; optional limit (1-50), after_id; returns public summaries without emails |
 | POST /api/conversations/direct | JSON user_id; returns a new conversation with 201 or existing one with 200 |
 | GET /api/conversations | Actor's conversations, counterpart, last message and unread count |
-| POST /api/conversations/:id/messages | JSON content and optional request_id; returns the committed/original retry result |
+| POST /api/conversations/:id/messages | Optional content, attachment_ids and request_id; text or attachments required; returns committed/original retry result |
+| POST /api/conversations/:id/attachments | Declared content_type/size_bytes; returns private resumable upload grant |
+| POST /api/attachments/:id/complete | JSON {}; validates actual bytes and returns ready/attached metadata |
+| GET /api/attachments/:id/access | Returns authorized 15-minute generation-bound read URL |
 | GET /api/conversations/:id/messages | Optional limit (1-100), before_id or after_id; messages and cursors |
 | POST /api/conversations/:id/read | JSON last_read_message_id; returns effective read position |
 
@@ -114,6 +127,12 @@ wscat -c ws://localhost:8080/ws -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 The hub is in-memory and serves one API process. Live delivery is best effort; it has no replay or exactly-once guarantee. Access-token expiry closes the socket, binary input closes with 1003, oversized messages with 1009, queue/rate abuse with 1008, and shutdown uses code 1001 where practical.
 
 The checked-in Cloud Build/Cloud Run configuration builds from the repository's `backend/` context and caps the service at one instance to match this hub limitation. Do not raise the instance count until realtime fan-out uses a shared broadcast adapter.
+
+### GitHub checks and deployment
+
+`.github/workflows/deploy.yml` runs the full race test suite against its isolated PostgreSQL18 `chat_app_test` service, then vet/build, on PRs to `main` and pushes to `main`. PRs only run checks. A successful push to `main` submits `backend/cloudbuild.yaml` with the commit SHA; Cloud Build deploys both API and cleanup using `chat-media-builder`. The existing `GCP_SA_KEY` secret authenticates the submitter, which needs Cloud Build submission/source-upload permissions and `iam.serviceAccounts.actAs` on that builder account. The workflow itself has not run until a PR/push event occurs.
+
+Generated `gha-creds-*.json` files are excluded from Git and Cloud Build source. A rerun preserves an existing create-only video fixture instead of failing on HTTP412. `trigger.tf`/`trigger.yaml` are alternative Cloud Build trigger definitions, aligned to the same YAML; no live trigger was found in the inspected regions. Do not enable a second deployment trigger alongside GitHub Actions for the same push.
 
 On reconnect, establish the socket and buffer events first. Fetch every REST history page using `after_id` from the last completed REST synchronization checkpoint, merge by message ID, then merge buffered events. Never advance this checkpoint solely from live-event IDs. Retry unresolved sends with the original request ID; REST fallback accepts the same optional `request_id`. Acknowledgement confirms persistence, not recipient delivery. `read_updated` is only an acknowledgement, not a broadcast read receipt.
 

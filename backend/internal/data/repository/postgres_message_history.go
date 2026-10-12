@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
+
+	"github.com/lib/pq"
 	"github.com/lilpao0/chat_app/backend/internal/domain/entity"
 	domainrepo "github.com/lilpao0/chat_app/backend/internal/domain/repository"
 )
@@ -47,6 +49,9 @@ func (r *PostgresMessageRepository) History(ctx context.Context, conversationID,
 	if err := rows.Err(); err != nil {
 		return entity.MessagePage{}, fmt.Errorf("read history: %w", err)
 	}
+	if err := rows.Close(); err != nil {
+		return entity.MessagePage{}, fmt.Errorf("close history rows: %w", err)
+	}
 	if len(page.Items) > q.Limit {
 		page.HasMore = true
 		page.Items = page.Items[:q.Limit]
@@ -57,5 +62,60 @@ func (r *PostgresMessageRepository) History(ctx context.Context, conversationID,
 			page.NextBeforeID = &last
 		}
 	}
+	if err := r.loadAttachments(ctx, conversationID, page.Items); err != nil {
+		return entity.MessagePage{}, err
+	}
 	return page, nil
+}
+
+func (r *PostgresMessageRepository) loadAttachments(
+	ctx context.Context,
+	conversationID int64,
+	messages []entity.Message,
+) error {
+	if len(messages) == 0 {
+		return nil
+	}
+
+	ids := make([]int64, len(messages))
+	indexByID := make(map[int64]int, len(messages))
+	for i := range messages {
+		ids[i] = messages[i].ID
+		indexByID[messages[i].ID] = i
+		messages[i].Attachments = make([]entity.Attachment, 0)
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT message_id, id, kind, content_type, size_bytes
+		FROM attachments
+		WHERE conversation_id =$1
+			AND message_id = ANY($2::bigint[])
+			AND state ='attached'
+		ORDER BY message_id, position
+	`, conversationID, pq.Array(ids))
+	if err != nil {
+		return fmt.Errorf("load history attachments:%w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var messageID int64
+		var attachment entity.Attachment
+		if err := rows.Scan(
+			&messageID,
+			&attachment.ID,
+			&attachment.Kind,
+			&attachment.ContentType,
+			&attachment.SizeBytes,
+		); err != nil {
+			return fmt.Errorf("scan history attachment:%w", err)
+		}
+
+		i := indexByID[messageID]
+		messages[i].Attachments = append(messages[i].Attachments, attachment)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("read history attachments:%w", err)
+	}
+	return nil
 }

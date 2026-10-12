@@ -1,0 +1,6 @@
+.env
+.env.*
+.livecheck/
+*.exe
+*.log
+.git/

@@ -35,6 +35,10 @@ func TestCORSPreflightAndApplicationErrors(t *testing.T) {
 	protected.GET("/conversations", func(c *gin.Context) { response.Success(c, 200, []any{}) })
 	protected.GET("/invalid", func(c *gin.Context) { response.Error(c, 400, "invalid_input", "Invalid input.") })
 	protected.GET("/failure", func(c *gin.Context) { response.Error(c, 500, "internal_error", "Unable to complete the request.") })
+	protected.GET("/rate-limited", func(c *gin.Context) {
+		c.Header("Retry-After", "60")
+		response.Error(c, 429, "rate_limited", "Too many upload requests.")
+	})
 	for _, path := range []string{"/api/conversations", "/api/auth/refresh", "/api/ws/tickets"} {
 		req := httptest.NewRequest("OPTIONS", path, nil)
 		req.Header.Set("Origin", "http://localhost:5173")
@@ -57,6 +61,7 @@ func TestCORSPreflightAndApplicationErrors(t *testing.T) {
 		{"GET", "/api/conversations", "", true, 200},
 		{"GET", "/api/invalid", "", true, 400},
 		{"GET", "/api/failure", "", true, 500},
+		{"GET", "/api/rate-limited", "", true, 429},
 		{"POST", "/api/auth/refresh", "{", false, 400},
 		{"POST", "/api/auth/refresh", `{"refresh_token":"test"}`, false, 500},
 	} {
@@ -70,6 +75,9 @@ func TestCORSPreflightAndApplicationErrors(t *testing.T) {
 		r.ServeHTTP(out, req)
 		if out.Code != tc.status || out.Header().Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
 			t.Fatalf("%s: %d %v", tc.path, out.Code, out.Header())
+		}
+		if tc.status == 429 && (out.Header().Get("Retry-After") != "60" || !strings.Contains(strings.ToLower(out.Header().Get("Access-Control-Expose-Headers")), "retry-after")) {
+			t.Fatal("browser cannot read upload retry delay")
 		}
 	}
 	for _, origins := range [][]string{{"http://localhost:5174"}, {"null"}, {"http://localhost:5173", "http://localhost:5173"}} {

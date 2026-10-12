@@ -70,29 +70,38 @@ func TestPostmanCollectionCoversOpenAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	type postmanItem struct {
+		Items   []postmanItem `json:"item"`
+		Name    string        `json:"name"`
+		Request struct {
+			Method string `json:"method"`
+			URL    struct {
+				Raw string `json:"raw"`
+			} `json:"url"`
+			Body struct {
+				Raw string `json:"raw"`
+			} `json:"body"`
+		} `json:"request"`
+	}
 	var collection struct {
-		Items []struct {
-			Name    string `json:"name"`
-			Request struct {
-				Method string `json:"method"`
-				URL    struct {
-					Raw string `json:"raw"`
-				} `json:"url"`
-				Body struct {
-					Raw string `json:"raw"`
-				} `json:"body"`
-			} `json:"request"`
-		} `json:"item"`
+		Items []postmanItem `json:"item"`
 	}
 	if err := json.Unmarshal(data, &collection); err != nil {
 		t.Fatalf("invalid Postman collection JSON: %v", err)
 	}
 	covered := map[string]bool{}
-	for _, item := range collection.Items {
+	items := append([]postmanItem(nil), collection.Items...)
+	for i := 0; i < len(items); i++ {
+		item := items[i]
+		if len(item.Items) > 0 {
+			items = append(items, item.Items...)
+			continue
+		}
 		path := strings.TrimPrefix(item.Request.URL.Raw, "{{baseUrl}}")
 		path = strings.SplitN(path, "?", 2)[0]
 		path = strings.ReplaceAll(path, "{{conversationId}}", "{id}")
 		path = strings.ReplaceAll(path, "{{userBId}}", "{id}")
+		path = strings.ReplaceAll(path, "{{attachmentId}}", "{id}")
 		covered[item.Request.Method+" "+path] = true
 		if item.Name == "02 Register A" || item.Name == "03 Register B" {
 			var body map[string]any
