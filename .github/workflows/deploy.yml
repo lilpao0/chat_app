@@ -52,6 +52,8 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - uses: google-github-actions/setup-gcloud@v2
+      - name: Show authenticated account
+        run: gcloud auth list --filter=status:ACTIVE --format="value(account)"
       - name: Build and deploy API and cleanup
         env:
           RELEASE_SHA: ${{ github.sha }}
