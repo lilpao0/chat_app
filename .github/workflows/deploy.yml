@@ -54,6 +54,8 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Show authenticated account
         run: gcloud auth list --filter=status:ACTIVE --format="value(account)"
+      - name: Check source staging bucket access
+        run: gcloud storage buckets describe gs://vinai-lab_cloudbuild --project=vinai-lab --format="value(name)"
       - name: Build and deploy API and cleanup
         env:
           RELEASE_SHA: ${{ github.sha }}
