@@ -204,6 +204,21 @@ func TestConcurrentBindingAndPendingExpiry(t *testing.T) {
 	if _, _, err := messages.SendMediaOnce(ctx, f.ConversationID, f.UserAID, "", "", []int64{expired.ID}); !errors.Is(err, entity.ErrAttachmentExpired) {
 		t.Fatal("expired ready media bound")
 	}
+	// A busy expired row must be skipped and remain eligible for a later pass.
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `SELECT id FROM attachments WHERE id=$1 FOR UPDATE`, expired.ID); err != nil {
+		t.Fatal(err)
+	}
+	if claimed, err := files.ClaimExpired(ctx, 10); err != nil || len(claimed) != 0 {
+		t.Fatalf("cleanup must skip locked media: claimed=%v err=%v", claimed, err)
+	}
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
 	// Cleanup, completion and a new send compete for the same expired row.
 	start := make(chan struct{})
 	errResults := make(chan error, 2)
@@ -234,8 +249,15 @@ func TestConcurrentBindingAndPendingExpiry(t *testing.T) {
 		}
 	}
 	claimed := <-cleanupResults
+	// SKIP LOCKED may defer the row while send or completion holds its lock.
+	// Both operations have finished, so the next pass must claim any deferred row.
+	next, err := files.ClaimExpired(ctx, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed = append(claimed, next...)
 	if len(claimed) != 1 || claimed[0].ID != expired.ID {
-		t.Fatal("cleanup claimed attached media during race")
+		t.Fatalf("cleanup claims=%v want only expired media %d", claimed, expired.ID)
 	}
 	var state string
 	var messageCount int
